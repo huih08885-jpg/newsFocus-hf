@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
         where: matchWhere,
         include: {
           newsItem: {
-            where,
             include: {
               platform: true,
             },
@@ -80,8 +79,29 @@ export async function GET(request: NextRequest) {
         orderBy: { weight: 'desc' },
       })
 
-      // 过滤并排序
-      items = matches
+      // 过滤新闻项（根据 where 条件）
+      let filteredMatches = matches.filter((match) => {
+        if (!match.newsItem) return false
+        
+        const item = match.newsItem
+        
+        // 平台过滤
+        if (platforms && platforms.length > 0) {
+          if (!platforms.includes(item.platformId)) return false
+        }
+        
+        // 日期过滤
+        if (dateFrom || dateTo) {
+          const crawledAt = new Date(item.crawledAt)
+          if (dateFrom && crawledAt < dateFrom) return false
+          if (dateTo && crawledAt > dateTo) return false
+        }
+        
+        return true
+      })
+
+      // 转换并分页
+      items = filteredMatches
         .map((match) => ({
           ...match.newsItem,
           matches: [{
@@ -90,10 +110,9 @@ export async function GET(request: NextRequest) {
             matchCount: match.matchCount,
           }],
         }))
-        .filter((item) => item.id) // 过滤掉null
         .slice(offset, offset + limit)
 
-      total = matches.filter((m) => m.newsItem).length
+      total = filteredMatches.length
     } else {
       // 直接查询新闻
       // 如果按 weight 排序，需要通过 matches 关系排序

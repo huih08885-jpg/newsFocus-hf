@@ -44,11 +44,17 @@ export function middleware(request: NextRequest) {
   }
 
   // API 路由保护（除了公开的 API）
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
-    // 检查是否是公开的 API（如 /api/news/platforms）
-    const publicApiRoutes = ['/api/news/platforms']
+  if (pathname.startsWith('/api/')) {
+    // 公开的 API 路由（无需登录）
+    const publicApiRoutes = [
+      '/api/auth/login',
+      '/api/auth/register',
+      '/api/news/platforms',
+      '/api/news/platforms/public',
+    ]
     const isPublicApi = publicApiRoutes.some(route => pathname.startsWith(route))
     
+    // 如果不是公开 API，需要登录
     if (!isPublicApi) {
       const sessionToken = request.cookies.get('newsfocus_session')
       if (!sessionToken) {
@@ -67,12 +73,11 @@ export const config = {
   matcher: [
     /*
      * 匹配所有请求路径，除了：
-     * - api路由（需要单独处理）
      * - _next/static (静态文件)
      * - _next/image (图片优化文件)
      * - favicon.ico (favicon文件)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
 
