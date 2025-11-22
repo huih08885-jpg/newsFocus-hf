@@ -15,15 +15,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
+import type { KeywordGroup } from "@/lib/types"
 
-interface KeywordGroup {
+// 表单用的 KeywordGroup（id 可选，name 转换为 string）
+interface KeywordGroupForm extends Omit<KeywordGroup, 'id' | 'name'> {
   id?: string
   name?: string
-  words: string[]
-  requiredWords: string[]
-  excludedWords: string[]
-  priority: number
-  enabled: boolean
 }
 
 interface KeywordFormDialogProps {
@@ -41,7 +38,7 @@ export function KeywordFormDialog({
 }: KeywordFormDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState<KeywordGroup>({
+  const [formData, setFormData] = useState<KeywordGroupForm>({
     name: "",
     words: [],
     requiredWords: [],
@@ -52,7 +49,15 @@ export function KeywordFormDialog({
 
   useEffect(() => {
     if (keywordGroup) {
-      setFormData(keywordGroup)
+      setFormData({
+        id: keywordGroup.id,
+        name: keywordGroup.name ?? "",
+        words: keywordGroup.words,
+        requiredWords: keywordGroup.requiredWords,
+        excludedWords: keywordGroup.excludedWords,
+        priority: keywordGroup.priority,
+        enabled: keywordGroup.enabled,
+      })
     } else {
       setFormData({
         name: "",

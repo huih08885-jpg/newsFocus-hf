@@ -1,14 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-
-interface KeywordGroup {
-  id: string
-  name?: string | null
-  words: string[]
-  requiredWords: string[]
-  excludedWords: string[]
-  priority: number
-  enabled: boolean
-}
+import type { KeywordGroup } from '@/lib/types'
 
 interface MatchResult {
   matched: boolean

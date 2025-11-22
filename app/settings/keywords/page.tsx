@@ -8,6 +8,7 @@ import { Plus, Edit, Trash2, TestTube, RefreshCw } from "lucide-react"
 import { KeywordFormDialog } from "@/components/keywords/keyword-form-dialog"
 import { KeywordTestDialog } from "@/components/keywords/keyword-test-dialog"
 import { useToast } from "@/hooks/use-toast"
+import type { KeywordGroup } from "@/lib/types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,16 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-interface KeywordGroup {
-  id: string
-  name?: string | null
-  words: string[]
-  requiredWords: string[]
-  excludedWords: string[]
-  priority: number
-  enabled: boolean
-}
 
 export default function KeywordsPage() {
   const { toast } = useToast()

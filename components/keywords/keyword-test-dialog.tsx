@@ -14,17 +14,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import type { KeywordGroup } from "@/lib/types"
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react"
-
-interface KeywordGroup {
-  id: string
-  name?: string | null
-  words: string[]
-  requiredWords: string[]
-  excludedWords: string[]
-  priority: number
-  enabled: boolean
-}
 
 interface KeywordTestDialogProps {
   open: boolean
