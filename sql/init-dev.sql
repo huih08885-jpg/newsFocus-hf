@@ -115,6 +115,27 @@ CREATE TABLE IF NOT EXISTS "crawl_tasks" (
     "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
+-- 用户表
+CREATE TABLE IF NOT EXISTS "users" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT NOT NULL UNIQUE,
+    "name" TEXT,
+    "password" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'user',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+);
+
+-- 会话表
+CREATE TABLE IF NOT EXISTS "sessions" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "token" TEXT NOT NULL UNIQUE,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- ============================================
 -- 2. 创建索引
 -- ============================================
@@ -154,6 +175,14 @@ CREATE INDEX IF NOT EXISTS "system_configs_key_idx" ON "system_configs"("key");
 CREATE INDEX IF NOT EXISTS "crawl_tasks_status_idx" ON "crawl_tasks"("status");
 CREATE INDEX IF NOT EXISTS "crawl_tasks_createdAt_idx" ON "crawl_tasks"("createdAt");
 
+-- 用户表索引
+CREATE INDEX IF NOT EXISTS "users_email_idx" ON "users"("email");
+
+-- 会话表索引
+CREATE INDEX IF NOT EXISTS "sessions_token_idx" ON "sessions"("token");
+CREATE INDEX IF NOT EXISTS "sessions_userId_idx" ON "sessions"("userId");
+CREATE INDEX IF NOT EXISTS "sessions_expiresAt_idx" ON "sessions"("expiresAt");
+
 -- ============================================
 -- 3. 创建触发器（自动更新 updatedAt）
 -- ============================================
@@ -184,6 +213,9 @@ CREATE TRIGGER update_system_configs_updated_at BEFORE UPDATE ON "system_configs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_crawl_tasks_updated_at BEFORE UPDATE ON "crawl_tasks"
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON "users"
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
@@ -241,5 +273,5 @@ DO $$
 BEGIN
     RAISE NOTICE '开发环境数据库初始化完成！';
     RAISE NOTICE '已创建所有表、索引、触发器和初始数据。';
+    RAISE NOTICE '包括用户认证相关的表（users, sessions）。';
 END $$;
-
