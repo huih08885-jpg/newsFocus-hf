@@ -69,18 +69,23 @@ export async function GET(request: NextRequest) {
           where: { newsItemId: newsId },
         })
 
-        for (const keywordGroup of keywordGroups) {
-          // 计算权重
-          const weight = calculator.calculateWeight({
-            ranks: appearances.map((a) => a.rank).concat([newsItem.rank]),
-            matchCount: 1,
-            appearances: appearances.concat([
-              {
-                rank: newsItem.rank,
-                appearedAt: newsItem.crawledAt,
-              },
-            ]),
-          })
+            for (const keywordGroup of keywordGroups) {
+              // 计算权重
+              const appearanceData = appearances.map((a) => ({
+                rank: a.rank,
+                appearedAt: a.appearedAt,
+              }))
+              
+              const weight = calculator.calculateWeight({
+                ranks: appearanceData.map((a) => a.rank).concat([newsItem.rank]),
+                matchCount: 1,
+                appearances: appearanceData.concat([
+                  {
+                    rank: newsItem.rank,
+                    appearedAt: newsItem.crawledAt,
+                  },
+                ]),
+              })
 
           // 创建或更新匹配记录
           await prisma.newsMatch.upsert({
