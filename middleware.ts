@@ -1,0 +1,78 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+// 公开路由（无需登录）
+const publicRoutes = ['/login', '/register', '/platforms']
+
+// 需要登录的路由
+const protectedRoutes = [
+  '/',
+  '/news',
+  '/analytics',
+  '/history',
+  '/settings',
+]
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // 检查是否是公开路由
+  const isPublicRoute = publicRoutes.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  )
+
+  // 检查是否是受保护的路由
+  const isProtectedRoute = protectedRoutes.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  )
+
+  // 如果是公开路由，直接放行
+  if (isPublicRoute) {
+    return NextResponse.next()
+  }
+
+  // 如果是受保护的路由，检查 session cookie
+  if (isProtectedRoute) {
+    const sessionToken = request.cookies.get('newsfocus_session')
+
+    if (!sessionToken) {
+      // 未登录，重定向到登录页
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
+  // API 路由保护（除了公开的 API）
+  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+    // 检查是否是公开的 API（如 /api/news/platforms）
+    const publicApiRoutes = ['/api/news/platforms']
+    const isPublicApi = publicApiRoutes.some(route => pathname.startsWith(route))
+    
+    if (!isPublicApi) {
+      const sessionToken = request.cookies.get('newsfocus_session')
+      if (!sessionToken) {
+        return NextResponse.json(
+          { success: false, error: { code: 'UNAUTHORIZED', message: '需要登录' } },
+          { status: 401 }
+        )
+      }
+    }
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: [
+    /*
+     * 匹配所有请求路径，除了：
+     * - api路由（需要单独处理）
+     * - _next/static (静态文件)
+     * - _next/image (图片优化文件)
+     * - favicon.ico (favicon文件)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+}
+

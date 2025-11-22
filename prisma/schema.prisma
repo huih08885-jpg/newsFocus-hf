@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 平台表
+model Platform {
+  id          String   @id @default(cuid())
+  platformId  String   @unique // 平台ID，如 "zhihu", "weibo"
+  name        String   // 平台名称，如 "知乎", "微博"
+  enabled     Boolean  @default(true) // 是否启用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关系
+  newsItems   NewsItem[]
+
+  @@index([platformId])
+  @@index([enabled])
+  @@map("platforms")
+}
+
+// 新闻项表
+model NewsItem {
+  id          String   @id @default(cuid())
+  platformId  String   // 平台ID
+  title       String   // 新闻标题
+  url         String?  // PC链接
+  mobileUrl   String?  // 移动端链接
+  rank        Int      // 排名（1-10）
+  crawledAt   DateTime @default(now()) // 爬取时间
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关系
+  platform    Platform @relation(fields: [platformId], references: [platformId])
+  matches      NewsMatch[]
+  appearances  NewsAppearance[]
+
+  @@index([platformId, crawledAt])
+  @@index([title])
+  @@index([crawledAt])
+  @@unique([platformId, title, crawledAt]) // 防止重复
+  @@map("news_items")
+}
+
+// 关键词组表
+model KeywordGroup {
+  id            String   @id @default(cuid())
+  name          String?  // 词组名称（可选）
+  words         String[] // 普通词列表
+  requiredWords String[] // 必须词列表（带+前缀）
+  excludedWords String[] // 过滤词列表（带!前缀）
+  priority      Int      @default(0) // 优先级（数字越小优先级越高）
+  enabled       Boolean  @default(true) // 是否启用
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 关系
+  matches       NewsMatch[]
+
+  @@index([priority])
+  @@index([enabled])
+  @@map("keyword_groups")
+}
+
+// 新闻匹配记录表
+model NewsMatch {
+  id            String   @id @default(cuid())
+  newsItemId    String   // 新闻项ID
+  keywordGroupId String  // 关键词组ID
+  weight        Float    // 权重分数
+  matchCount    Int      @default(1) // 匹配次数（同一新闻在不同时间出现）
+  firstMatchedAt DateTime @default(now()) // 首次匹配时间
+  lastMatchedAt  DateTime @default(now()) // 最后匹配时间
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 关系
+  newsItem      NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+  keywordGroup  KeywordGroup @relation(fields: [keywordGroupId], references: [id], onDelete: Cascade)
+  appearances   NewsAppearance[]
+
+  @@unique([newsItemId, keywordGroupId])
+  @@index([weight])
+  @@index([keywordGroupId, weight])
+  @@index([lastMatchedAt])
+  @@map("news_matches")
+}
+
+// 新闻出现记录表（记录新闻在不同时间的排名）
+model NewsAppearance {
+  id          String   @id @default(cuid())
+  newsItemId  String   // 新闻项ID
+  matchId     String?  // 匹配记录ID（可选）
+  rank        Int      // 排名
+  appearedAt  DateTime @default(now()) // 出现时间
+  createdAt   DateTime @default(now())
+
+  // 关系
+  newsItem    NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+  match       NewsMatch? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([newsItemId, appearedAt])
+  @@index([matchId])
+  @@index([appearedAt])
+  @@map("news_appearances")
+}
+
+// 推送记录表
+model PushRecord {
+  id          String   @id @default(cuid())
+  channel     String   // 推送渠道：feishu, dingtalk, wework, telegram, email, ntfy
+  reportType  String   // 报告类型：daily, current, incremental
+  reportDate  DateTime // 报告日期
+  pushedAt    DateTime @default(now()) // 推送时间
+  success     Boolean  @default(true) // 是否成功
+  errorMessage String? // 错误信息（如果失败）
+  createdAt   DateTime @default(now())
+
+  @@unique([channel, reportDate, reportType])
+  @@index([reportDate])
+  @@index([channel, reportDate])
+  @@index([pushedAt])
+  @@map("push_records")
+}
+
+// 系统配置表
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique // 配置键
+  value       Json     // 配置值（JSON格式）
+  description String?  // 配置说明
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([key])
+  @@map("system_configs")
+}
+
+// 爬取任务记录表
+model CrawlTask {
+  id          String   @id @default(cuid())
+  status      String   @default("pending") // pending, running, completed, failed
+  startedAt   DateTime? // 开始时间
+  completedAt DateTime? // 完成时间
+  successCount Int      @default(0) // 成功爬取的平台数
+  failedCount  Int      @default(0) // 失败的平台数
+  errorMessage String?  // 错误信息
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("crawl_tasks")
+}
+
+// 用户表
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String   // 密码哈希
+  role      String   @default("user") // user, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions  Session[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// 会话表
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+

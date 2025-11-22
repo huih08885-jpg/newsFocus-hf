@@ -1,0 +1,18 @@
+{
+  "buildCommand": "prisma generate && next build",
+  "framework": "nextjs",
+  "installCommand": "pnpm install",
+  "crons": [
+    {
+      "path": "/api/cron/crawl",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 2 * * *"
+    }
+  ],
+  "env": {
+    "PRISMA_GENERATE_DATAPROXY": "false"
+  }
+}

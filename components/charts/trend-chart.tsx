@@ -1,0 +1,48 @@
+"use client"
+
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+
+interface TrendChartProps {
+  data: Array<{
+    date: string
+    count: number
+    [key: string]: string | number
+  }>
+  dataKey?: string
+  color?: string
+}
+
+export function TrendChart({ data, dataKey = 'count', color = '#3b82f6' }: TrendChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis 
+          dataKey="date" 
+          tick={{ fontSize: 12 }}
+          angle={-45}
+          textAnchor="end"
+          height={80}
+        />
+        <YAxis tick={{ fontSize: 12 }} />
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #e5e7eb',
+            borderRadius: '6px'
+          }}
+        />
+        <Legend />
+        <Line 
+          type="monotone" 
+          dataKey={dataKey} 
+          stroke={color} 
+          strokeWidth={2}
+          dot={{ r: 4 }}
+          activeDot={{ r: 6 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+
