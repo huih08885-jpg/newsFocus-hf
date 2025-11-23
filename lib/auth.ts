@@ -31,7 +31,9 @@ export async function getCurrentUser(): Promise<User | null> {
 
     if (!session || session.expiresAt < new Date()) {
       // 会话已过期，删除
-      await prisma.session.delete({ where: { id: session.id } }).catch(() => {})
+      if (session) {
+        await prisma.session.delete({ where: { id: session.id } }).catch(() => {})
+      }
       return null
     }
 
