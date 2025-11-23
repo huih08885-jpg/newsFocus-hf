@@ -41,7 +41,7 @@ export class ReportService {
   /**
    * 生成HTML报告
    */
-  async generateHTMLReport(data: ReportData): Promise<string> {
+  generateHTMLReport(data: ReportData): string {
     const html = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -362,7 +362,7 @@ export class ReportService {
     text: string
   } {
     const subject = `新闻热点报告 - ${data.reportType === 'daily' ? '当日汇总' : data.reportType === 'current' ? '当前榜单' : '增量监控'}`
-    const html = this.generateHTMLReport(data)
+    const html = this.generateHTMLReport(data) // 现在是同步函数，直接返回 string
     
     let text = `${subject}\n\n`
     text += `新闻总数: ${data.totalCount}\n`
