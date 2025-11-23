@@ -68,7 +68,7 @@ export function CrawlProgressDialog({
           let parsedProgress: CrawlProgress = {
             status: task.status as any,
             currentStep: task.status === "completed" ? "completed" : 
-                        task.status === "running" ? "crawling" : "pending",
+                        task.status === "running" ? "crawling" : "crawling", // pending 状态也显示为 crawling
             totalPlatforms: 0,
             completedPlatforms: 0,
             successCount: task.successCount || 0,
@@ -184,6 +184,7 @@ export function CrawlProgressDialog({
       case "completed":
         return "爬取完成"
       default:
+        // TypeScript 类型检查确保这里不会被执行
         return "准备中"
     }
   }
