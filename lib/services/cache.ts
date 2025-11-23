@@ -1,20 +1,32 @@
 // 缓存服务 - 使用Vercel KV或内存缓存
 
 let kvClient: any = null
+let kvInitialized = false
 
-// 尝试初始化Vercel KV
-try {
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    // 动态导入@vercel/kv
-    import('@vercel/kv').then((kv) => {
+// 初始化Vercel KV（同步初始化，避免异步问题）
+async function initKV() {
+  if (kvInitialized) return
+  
+  try {
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      const kv = await import('@vercel/kv')
       kvClient = kv.kv({
         url: process.env.KV_REST_API_URL,
         token: process.env.KV_REST_API_TOKEN,
       })
-    })
+      kvInitialized = true
+    }
+  } catch (error) {
+    console.warn('Vercel KV not available, using memory cache:', error)
+    kvInitialized = true // 标记为已初始化，避免重复尝试
   }
-} catch (error) {
-  console.warn('Vercel KV not available, using memory cache')
+}
+
+// 在模块加载时初始化（但不阻塞）
+if (typeof window === 'undefined') {
+  initKV().catch(() => {
+    // 静默失败，使用内存缓存
+  })
 }
 
 // 内存缓存作为后备
@@ -25,6 +37,11 @@ export class CacheService {
 
   async get<T>(key: string): Promise<T | null> {
     try {
+      // 确保KV已初始化
+      if (!kvInitialized) {
+        await initKV()
+      }
+      
       // 尝试使用Vercel KV
       if (kvClient) {
         const value = await kvClient.get<T>(key)
@@ -51,6 +68,11 @@ export class CacheService {
 
   async set<T>(key: string, value: T, ttl: number = this.defaultTTL): Promise<void> {
     try {
+      // 确保KV已初始化
+      if (!kvInitialized) {
+        await initKV()
+      }
+      
       // 尝试使用Vercel KV
       if (kvClient) {
         await kvClient.set(key, value, { ex: ttl })
@@ -74,6 +96,11 @@ export class CacheService {
 
   async delete(key: string): Promise<void> {
     try {
+      // 确保KV已初始化
+      if (!kvInitialized) {
+        await initKV()
+      }
+      
       if (kvClient) {
         await kvClient.del(key)
         return
