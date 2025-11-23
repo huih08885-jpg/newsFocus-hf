@@ -3,17 +3,29 @@
 let kvClient: any = null
 let kvInitialized = false
 
-// 初始化Vercel KV（同步初始化，避免异步问题）
+// 初始化Vercel KV
 async function initKV() {
   if (kvInitialized) return
   
   try {
     if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      const kv = await import('@vercel/kv')
-      kvClient = kv.kv({
-        url: process.env.KV_REST_API_URL,
-        token: process.env.KV_REST_API_TOKEN,
-      })
+      // @vercel/kv 的正确使用方式
+      // 根据类型定义，@vercel/kv 导出 createClient 函数
+      const kvModule = await import('@vercel/kv')
+      
+      // 使用 createClient 创建客户端（推荐方式）
+      if (kvModule && typeof (kvModule as any).createClient === 'function') {
+        kvClient = (kvModule as any).createClient({
+          url: process.env.KV_REST_API_URL,
+          token: process.env.KV_REST_API_TOKEN,
+        })
+      } else {
+        // 如果没有 createClient，使用默认导出（需要环境变量已设置）
+        kvClient = (kvModule as any).default || kvModule
+      }
+      kvInitialized = true
+    } else {
+      // 没有配置 KV，标记为已初始化（使用内存缓存）
       kvInitialized = true
     }
   } catch (error) {
@@ -44,7 +56,7 @@ export class CacheService {
       
       // 尝试使用Vercel KV
       if (kvClient) {
-        const value = await kvClient.get<T>(key)
+        const value = await (kvClient as any).get(key) as T | null
         return value
       }
 
