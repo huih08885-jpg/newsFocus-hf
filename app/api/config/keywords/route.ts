@@ -58,39 +58,48 @@ export async function POST(request: NextRequest) {
     ]
 
     // 验证 customWebsites 格式
-    let validatedCustomWebsites = null
-    if (customWebsites && Array.isArray(customWebsites)) {
-      validatedCustomWebsites = customWebsites.filter((ws: any) => {
-        return (
-          ws &&
-          typeof ws === 'object' &&
-          typeof ws.name === 'string' &&
-          ws.name.trim().length > 0 &&
-          typeof ws.enabled === 'boolean' &&
-          ws.config &&
-          typeof ws.config === 'object' &&
-          ws.config.type === 'html'
-        )
-      }).map((ws: any) => ({
-        id: ws.id || `website-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: ws.name.trim(),
-        enabled: ws.enabled,
-        config: ws.config,
-      }))
+    let validatedCustomWebsites: any[] | undefined = undefined
+    if (customWebsites !== undefined && customWebsites !== null) {
+      if (Array.isArray(customWebsites)) {
+        const filtered = customWebsites.filter((ws: any) => {
+          return (
+            ws &&
+            typeof ws === 'object' &&
+            typeof ws.name === 'string' &&
+            ws.name.trim().length > 0 &&
+            typeof ws.enabled === 'boolean' &&
+            ws.config &&
+            typeof ws.config === 'object' &&
+            ws.config.type === 'html'
+          )
+        }).map((ws: any) => ({
+          id: ws.id || `website-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: ws.name.trim(),
+          enabled: ws.enabled,
+          config: ws.config,
+        }))
+        
+        // 允许空数组
+        validatedCustomWebsites = filtered
+      }
+    }
+
+    const createData: any = {
+      name: name?.trim() || null,
+      words: uniqueWords,
+      requiredWords: uniqueRequiredWords,
+      excludedWords: uniqueExcludedWords,
+      priority: priority ?? 0,
+      enabled: enabled ?? true,
+    }
+
+    // 如果 customWebsites 被明确传递（包括空数组），则包含该字段
+    if (validatedCustomWebsites !== undefined) {
+      createData.customWebsites = validatedCustomWebsites
     }
 
     const keywordGroup = await prisma.keywordGroup.create({
-      data: {
-        name: name?.trim() || null,
-        words: uniqueWords,
-        requiredWords: uniqueRequiredWords,
-        excludedWords: uniqueExcludedWords,
-        priority: priority ?? 0,
-        enabled: enabled ?? true,
-        customWebsites: validatedCustomWebsites && validatedCustomWebsites.length > 0 
-          ? validatedCustomWebsites 
-          : null,
-      },
+      data: createData,
     })
 
     return NextResponse.json({

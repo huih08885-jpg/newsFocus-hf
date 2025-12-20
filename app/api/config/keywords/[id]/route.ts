@@ -50,42 +50,49 @@ export async function PUT(
     const { name, words, requiredWords, excludedWords, priority, enabled, customWebsites } = body
 
     // 验证 customWebsites 格式
-    let validatedCustomWebsites = null
-    if (customWebsites && Array.isArray(customWebsites)) {
-      validatedCustomWebsites = customWebsites.filter((ws: any) => {
-        return (
-          ws &&
-          typeof ws === 'object' &&
-          typeof ws.name === 'string' &&
-          ws.name.trim().length > 0 &&
-          typeof ws.enabled === 'boolean' &&
-          ws.config &&
-          typeof ws.config === 'object' &&
-          ws.config.type === 'html'
-        )
-      }).map((ws: any) => ({
-        id: ws.id || `website-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: ws.name.trim(),
-        enabled: ws.enabled,
-        config: ws.config,
-      }))
-    } else if (customWebsites === null || customWebsites === undefined) {
-      validatedCustomWebsites = null
+    let validatedCustomWebsites: any[] | undefined = undefined
+    if (customWebsites !== undefined && customWebsites !== null) {
+      if (Array.isArray(customWebsites)) {
+        const filtered = customWebsites.filter((ws: any) => {
+          return (
+            ws &&
+            typeof ws === 'object' &&
+            typeof ws.name === 'string' &&
+            ws.name.trim().length > 0 &&
+            typeof ws.enabled === 'boolean' &&
+            ws.config &&
+            typeof ws.config === 'object' &&
+            ws.config.type === 'html'
+          )
+        }).map((ws: any) => ({
+          id: ws.id || `website-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: ws.name.trim(),
+          enabled: ws.enabled,
+          config: ws.config,
+        }))
+        
+        // 允许空数组来清空字段
+        validatedCustomWebsites = filtered
+      }
+    }
+
+    const updateData: any = {
+      name,
+      words: words || [],
+      requiredWords: requiredWords || [],
+      excludedWords: excludedWords || [],
+      priority: priority ?? 0,
+      enabled: enabled ?? true,
+    }
+
+    // 如果 customWebsites 被明确传递（包括空数组），则更新该字段
+    if (validatedCustomWebsites !== undefined) {
+      updateData.customWebsites = validatedCustomWebsites
     }
 
     const keywordGroup = await prisma.keywordGroup.update({
       where: { id: params.id },
-      data: {
-        name,
-        words: words || [],
-        requiredWords: requiredWords || [],
-        excludedWords: excludedWords || [],
-        priority: priority ?? 0,
-        enabled: enabled ?? true,
-        customWebsites: validatedCustomWebsites && validatedCustomWebsites.length > 0 
-          ? validatedCustomWebsites 
-          : null,
-      },
+      data: updateData,
     })
 
     return NextResponse.json({
