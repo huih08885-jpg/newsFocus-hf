@@ -10,9 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, XCircle, Loader2, Search } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface CrawlProgress {
   status: "pending" | "running" | "completed" | "failed"
@@ -21,10 +21,13 @@ interface CrawlProgress {
   completedPlatforms: number
   successCount: number
   failedCount: number
+  fetchedNewsCount: number
   currentPlatform?: string
   matchedNews: number
   errorMessage?: string | null
   failedPlatforms?: Array<{ platformId: string; error: string }>
+  startedAt?: string | null
+  updatedAt?: string | null
 }
 
 interface CrawlProgressDialogProps {
@@ -41,12 +44,16 @@ export function CrawlProgressDialog({
   onComplete,
 }: CrawlProgressDialogProps) {
   const [progress, setProgress] = useState<CrawlProgress | null>(null)
+  const [forceCleanupLoading, setForceCleanupLoading] = useState(false)
+  const [allowClose, setAllowClose] = useState(false)
+  const { toast } = useToast()
 
   console.log("CrawlProgressDialog渲染:", { open, taskId, hasProgress: !!progress })
 
   useEffect(() => {
     if (!open || !taskId) {
       setProgress(null)
+      setAllowClose(false)
       return
     }
 
@@ -73,9 +80,13 @@ export function CrawlProgressDialog({
             completedPlatforms: 0,
             successCount: task.successCount || 0,
             failedCount: task.failedCount || 0,
+            fetchedNewsCount: 0,
             matchedNews: 0,
             errorMessage: task.errorMessage,
           }
+
+          parsedProgress.startedAt = task.startedAt
+          parsedProgress.updatedAt = task.updatedAt
 
           if (task.errorMessage) {
             try {
@@ -91,6 +102,9 @@ export function CrawlProgressDialog({
 
           if (isMounted) {
             setProgress(parsedProgress)
+            if (task.status !== "running" && task.status !== "pending") {
+              setAllowClose(true)
+            }
           }
 
           if (task.status === "completed" || task.status === "failed") {
@@ -138,7 +152,69 @@ export function CrawlProgressDialog({
     }
   }, [open, taskId, onComplete])
 
-  const canClose = progress ? (progress.status === "completed" || progress.status === "failed") : false
+  const canClose =
+    allowClose ||
+    (progress ? progress.status === "completed" || progress.status === "failed" : false)
+  const startedAtDate = progress?.startedAt ? new Date(progress.startedAt) : null
+  const updatedAtDate = progress?.updatedAt ? new Date(progress.updatedAt) : null
+  const elapsedSeconds = startedAtDate ? Math.max(0, Math.floor((Date.now() - startedAtDate.getTime()) / 1000)) : 0
+  const sinceUpdateSeconds = updatedAtDate ? Math.max(0, Math.floor((Date.now() - updatedAtDate.getTime()) / 1000)) : 0
+  const STALE_THRESHOLD_SECONDS = 3 * 60
+  const MAX_THRESHOLD_SECONDS = 12 * 60
+  const isLikelyStuck =
+    progress?.status === "running" &&
+    (elapsedSeconds >= MAX_THRESHOLD_SECONDS || sinceUpdateSeconds >= STALE_THRESHOLD_SECONDS)
+  const handleForceCleanup = async () => {
+    if (!taskId) return
+    setForceCleanupLoading(true)
+    try {
+      const res = await fetch("/api/crawl/cleanup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId,
+          reason: "任务已被用户在前端强制结束",
+        }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        throw new Error(data.error?.message || "强制结束失败")
+      }
+      toast({
+        title: "已结束任务",
+        description: "任务已标记为失败，可以重新发起爬取。",
+      })
+      setProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "failed",
+              errorMessage: "任务已被用户强制结束",
+            }
+          : prev
+      )
+      setAllowClose(true)
+    } catch (error) {
+      toast({
+        title: "强制结束失败",
+        description: error instanceof Error ? error.message : "请稍后重试",
+        variant: "destructive",
+      })
+    } finally {
+      setForceCleanupLoading(false)
+    }
+  }
+
+  const formatDuration = (seconds: number) => {
+    if (seconds <= 0) return "0秒"
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    if (minutes === 0) return `${secs}秒`
+    return `${minutes}分${secs.toString().padStart(2, "0")}秒`
+  }
+
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen && !canClose) {
@@ -241,6 +317,22 @@ export function CrawlProgressDialog({
 
             {progress.currentStep === "matching" && (
               <div className="pl-6 space-y-2">
+            {progress.status === "running" && (
+              <div className="space-y-2 pl-6 text-xs text-muted-foreground">
+                {startedAtDate && (
+                  <div>已运行 {formatDuration(elapsedSeconds)}</div>
+                )}
+                {updatedAtDate && (
+                  <div>最近进度更新于 {formatDuration(sinceUpdateSeconds)} 前</div>
+                )}
+                {isLikelyStuck && (
+                  <div className="text-yellow-700 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800 rounded-md p-2">
+                    任务可能已卡住，您可以选择强制结束并重新发起爬取。
+                  </div>
+                )}
+              </div>
+            )}
+
                 <div className="text-sm text-muted-foreground">
                   正在匹配关键词并计算权重...
                 </div>
@@ -253,7 +345,7 @@ export function CrawlProgressDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+          <div className="grid grid-cols-4 gap-4 pt-4 border-t">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
                 {progress.successCount}
@@ -265,6 +357,12 @@ export function CrawlProgressDialog({
                 {progress.failedCount}
               </div>
               <div className="text-sm text-muted-foreground">失败平台</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {progress.fetchedNewsCount}
+              </div>
+              <div className="text-sm text-muted-foreground">已获取新闻</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
@@ -326,17 +424,33 @@ export function CrawlProgressDialog({
           )}
         </div>
 
-        <DialogFooter>
-          {canClose && (
-            <Button onClick={() => handleOpenChange(false)}>
-              关闭
-            </Button>
-          )}
-          {!canClose && (
-            <div className="text-sm text-muted-foreground">
-              爬取进行中，请稍候...
-            </div>
-          )}
+        <DialogFooter className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-muted-foreground">
+            {progress.status === "running"
+              ? "爬取进行中..."
+              : progress.status === "completed"
+              ? "任务已完成"
+              : progress.status === "failed"
+              ? "任务已失败"
+              : ""}
+          </div>
+          <div className="flex gap-2">
+            {progress.status === "running" && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleForceCleanup}
+                disabled={forceCleanupLoading}
+              >
+                {forceCleanupLoading ? "处理中..." : "强制结束任务"}
+              </Button>
+            )}
+            {canClose && (
+              <Button onClick={() => handleOpenChange(false)}>
+                关闭
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

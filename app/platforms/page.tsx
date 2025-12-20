@@ -19,6 +19,8 @@ interface PlatformNews {
     title: string
     url?: string | null
     mobileUrl?: string | null
+    content?: string | null
+    publishedAt?: string | null
     rank: number
     crawledAt: string
     weight?: number
@@ -153,7 +155,9 @@ export default function PlatformsPage() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch("/api/auth/me")
+      const res = await fetch("/api/auth/me", {
+        credentials: "include", // 确保发送Cookie
+      })
       const data = await res.json()
       setIsAuthenticated(data.success)
     } catch (error) {

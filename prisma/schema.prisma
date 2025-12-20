@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,83 +7,84 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 平台表
 model Platform {
-  id          String   @id @default(cuid())
-  platformId  String   @unique // 平台ID，如 "zhihu", "weibo"
-  name        String   // 平台名称，如 "知乎", "微博"
-  enabled     Boolean  @default(true) // 是否启用
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // 关系
-  newsItems   NewsItem[]
+  id            String           @id @default(cuid())
+  platformId    String           @unique
+  name          String
+  enabled       Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  crawlerType   String           @default("builtin")
+  crawlerConfig Json?
+  newsItems     NewsItem[]
+  configs       PlatformConfig[]
 
   @@index([platformId])
   @@index([enabled])
   @@map("platforms")
 }
 
-// 新闻项表
 model NewsItem {
-  id          String   @id @default(cuid())
-  platformId  String   // 平台ID
-  title       String   // 新闻标题
-  url         String?  // PC链接
-  mobileUrl   String?  // 移动端链接
-  rank        Int      // 排名（1-10）
-  crawledAt   DateTime @default(now()) // 爬取时间
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String           @id @default(cuid())
+  platformId     String
+  title          String
+  url            String?
+  mobileUrl      String?
+  rank           Int
+  crawledAt      DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  sentiment      String?
+  sentimentScore Float?
+  content        String?
+  publishedAt    DateTime?        @map("publishedat") @db.Timestamp(6)
+  appearances    NewsAppearance[]
+  platform       Platform         @relation(fields: [platformId], references: [platformId])
+  matches        NewsMatch[]
+  actions        UserAction[]
+  collections    UserCollection[]
 
-  // 关系
-  platform    Platform @relation(fields: [platformId], references: [platformId])
-  matches      NewsMatch[]
-  appearances  NewsAppearance[]
-
+  @@unique([platformId, title, crawledAt])
   @@index([platformId, crawledAt])
   @@index([title])
   @@index([crawledAt])
-  @@unique([platformId, title, crawledAt]) // 防止重复
+  @@index([sentiment])
+  @@index([sentiment, crawledAt])
   @@map("news_items")
 }
 
-// 关键词组表
 model KeywordGroup {
-  id            String   @id @default(cuid())
-  name          String?  // 词组名称（可选）
-  words         String[] // 普通词列表
-  requiredWords String[] // 必须词列表（带+前缀）
-  excludedWords String[] // 过滤词列表（带!前缀）
-  priority      Int      @default(0) // 优先级（数字越小优先级越高）
-  enabled       Boolean  @default(true) // 是否启用
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // 关系
-  matches       NewsMatch[]
+  id                 String      @id @default(cuid())
+  name               String?
+  words              String[]    @default([])
+  requiredWords      String[]    @default([])
+  excludedWords      String[]    @default([])
+  priority           Int         @default(0)
+  enabled            Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  customWebsites     Json?
+  discoveredWebsites Json?       @map("discovered_websites")
+  matches            NewsMatch[]
 
   @@index([priority])
   @@index([enabled])
   @@map("keyword_groups")
 }
 
-// 新闻匹配记录表
 model NewsMatch {
-  id            String   @id @default(cuid())
-  newsItemId    String   // 新闻项ID
-  keywordGroupId String  // 关键词组ID
-  weight        Float    // 权重分数
-  matchCount    Int      @default(1) // 匹配次数（同一新闻在不同时间出现）
-  firstMatchedAt DateTime @default(now()) // 首次匹配时间
-  lastMatchedAt  DateTime @default(now()) // 最后匹配时间
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // 关系
-  newsItem      NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
-  keywordGroup  KeywordGroup @relation(fields: [keywordGroupId], references: [id], onDelete: Cascade)
-  appearances   NewsAppearance[]
+  id             String           @id @default(cuid())
+  newsItemId     String
+  keywordGroupId String
+  weight         Float
+  matchCount     Int              @default(1)
+  firstMatchedAt DateTime         @default(now())
+  lastMatchedAt  DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  appearances    NewsAppearance[]
+  keywordGroup   KeywordGroup     @relation(fields: [keywordGroupId], references: [id], onDelete: Cascade)
+  newsItem       NewsItem         @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
 
   @@unique([newsItemId, keywordGroupId])
   @@index([weight])
@@ -95,18 +93,15 @@ model NewsMatch {
   @@map("news_matches")
 }
 
-// 新闻出现记录表（记录新闻在不同时间的排名）
 model NewsAppearance {
-  id          String   @id @default(cuid())
-  newsItemId  String   // 新闻项ID
-  matchId     String?  // 匹配记录ID（可选）
-  rank        Int      // 排名
-  appearedAt  DateTime @default(now()) // 出现时间
-  createdAt   DateTime @default(now())
-
-  // 关系
-  newsItem    NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
-  match       NewsMatch? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  id         String     @id @default(cuid())
+  newsItemId String
+  matchId    String?
+  rank       Int
+  appearedAt DateTime   @default(now())
+  createdAt  DateTime   @default(now())
+  match      NewsMatch? @relation(fields: [matchId], references: [id])
+  newsItem   NewsItem   @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
 
   @@index([newsItemId, appearedAt])
   @@index([matchId])
@@ -114,16 +109,15 @@ model NewsAppearance {
   @@map("news_appearances")
 }
 
-// 推送记录表
 model PushRecord {
-  id          String   @id @default(cuid())
-  channel     String   // 推送渠道：feishu, dingtalk, wework, telegram, email, ntfy
-  reportType  String   // 报告类型：daily, current, incremental
-  reportDate  DateTime // 报告日期
-  pushedAt    DateTime @default(now()) // 推送时间
-  success     Boolean  @default(true) // 是否成功
-  errorMessage String? // 错误信息（如果失败）
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  channel      String
+  reportType   String
+  reportDate   DateTime
+  pushedAt     DateTime @default(now())
+  success      Boolean  @default(true)
+  errorMessage String?
+  createdAt    DateTime @default(now())
 
   @@unique([channel, reportDate, reportType])
   @@index([reportDate])
@@ -132,12 +126,11 @@ model PushRecord {
   @@map("push_records")
 }
 
-// 系统配置表
 model SystemConfig {
   id          String   @id @default(cuid())
-  key         String   @unique // 配置键
-  value       Json     // 配置值（JSON格式）
-  description String?  // 配置说明
+  key         String   @unique
+  value       Json
+  description String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 
@@ -145,47 +138,53 @@ model SystemConfig {
   @@map("system_configs")
 }
 
-// 爬取任务记录表
 model CrawlTask {
-  id          String   @id @default(cuid())
-  status      String   @default("pending") // pending, running, completed, failed
-  startedAt   DateTime? // 开始时间
-  completedAt DateTime? // 完成时间
-  successCount Int      @default(0) // 成功爬取的平台数
-  failedCount  Int      @default(0) // 失败的平台数
-  errorMessage String?  // 错误信息
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(cuid())
+  status       String    @default("pending")
+  startedAt    DateTime?
+  completedAt  DateTime?
+  successCount Int       @default(0)
+  failedCount  Int       @default(0)
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([status])
   @@index([createdAt])
   @@map("crawl_tasks")
 }
 
-// 用户表
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String   // 密码哈希
-  role      String   @default("user") // user, admin
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  sessions  Session[]
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  name               String?
+  password           String
+  role               String              @default("user")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  analysisComments   AnalysisComment[]
+  analysisLikes      AnalysisLike[]
+  analysisShares     AnalysisShare[]
+  analysisTasks      AnalysisTask[]
+  lotteryAnalyses    LotteryAnalysis[]
+  lotteryPredictions LotteryPrediction[]
+  lotteryConfigs     LotteryUserConfig?
+  platformConfigs    PlatformConfig[]
+  sessions           Session[]
+  actions            UserAction[]
+  collections        UserCollection[]
+  subscriptions      UserSubscription?
 
   @@index([email])
   @@map("users")
 }
 
-// 会话表
 model Session {
   id        String   @id @default(cuid())
   userId    String
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
@@ -194,3 +193,409 @@ model Session {
   @@map("sessions")
 }
 
+model UserAction {
+  id         String   @id @default(cuid())
+  userId     String
+  newsItemId String
+  action     String
+  createdAt  DateTime @default(now())
+  newsItem   NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([newsItemId])
+  @@index([action])
+  @@index([userId, action, createdAt])
+  @@map("user_actions")
+}
+
+model UserCollection {
+  id         String   @id @default(cuid())
+  userId     String
+  newsItemId String
+  createdAt  DateTime @default(now())
+  newsItem   NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, newsItemId])
+  @@index([userId, createdAt])
+  @@index([newsItemId])
+  @@map("user_collections")
+}
+
+model PlatformConfig {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  platformId String
+  userId     String?
+  config     Json
+  createdAt  DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+  platform   Platform  @relation(fields: [platformId], references: [platformId], onDelete: Cascade, onUpdate: NoAction, map: "platform_configs_platform_fk")
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "platform_configs_user_fk")
+
+  @@unique([platformId, userId], map: "platform_configs_unique")
+  @@map("platform_configs")
+}
+
+model SearchResult {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  keywords   String[]
+  source     String
+  title      String
+  url        String
+  snippet    String?
+  confidence Decimal? @default(0) @db.Decimal(5, 2)
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([createdAt], map: "idx_search_results_created_at")
+  @@index([source, createdAt], map: "idx_search_results_source_created_at")
+  @@map("search_results")
+}
+
+model SiteCandidate {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  domain             String
+  status             String               @default("new")
+  keywordGroupId     String?              @map("keyword_group_id")
+  lastDiscoveredAt   DateTime             @default(now()) @map("last_discovered_at") @db.Timestamp(6)
+  configJson         Json?                @map("config_json")
+  statsJson          Json?                @map("stats_json")
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  group_id           String?
+  analysis_status    String?              @default("pending")
+  analysis_result    Json?
+  analysis_error     String?
+  last_analyzed_at   DateTime?            @db.Timestamp(6)
+  last_crawled_at    DateTime?            @db.Timestamp(6)
+  crawl_enabled      Boolean?             @default(true)
+  name               String?
+  site_crawl_results site_crawl_results[]
+  site_crawl_tasks   site_crawl_tasks[]
+
+  @@index([domain], map: "idx_site_candidates_domain")
+  @@index([keywordGroupId], map: "idx_site_candidates_keyword_group_id")
+  @@index([status], map: "idx_site_candidates_status")
+  @@index([group_id], map: "idx_site_candidates_group_id")
+  @@map("site_candidates")
+}
+
+model site_crawl_results {
+  id               String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  task_id          String
+  site_id          String           @db.Uuid
+  title            String
+  url              String
+  summary          String?
+  published_at     DateTime?        @db.Timestamp(6)
+  crawled_at       DateTime         @default(now()) @db.Timestamp(6)
+  metadata         Json?
+  site_candidates  SiteCandidate    @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_site_crawl_results_site")
+  site_crawl_tasks site_crawl_tasks @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_site_crawl_results_task")
+
+  @@index([crawled_at], map: "idx_site_crawl_results_crawled_at")
+  @@index([published_at], map: "idx_site_crawl_results_published_at")
+  @@index([site_id], map: "idx_site_crawl_results_site_id")
+  @@index([task_id], map: "idx_site_crawl_results_task_id")
+}
+
+model site_crawl_tasks {
+  id                 String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  site_id            String               @db.Uuid
+  type               String
+  start_date         DateTime?            @db.Timestamp(6)
+  end_date           DateTime?            @db.Timestamp(6)
+  status             String               @default("pending")
+  result_count       Int                  @default(0)
+  error_message      String?
+  started_at         DateTime?            @db.Timestamp(6)
+  completed_at       DateTime?            @db.Timestamp(6)
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  site_crawl_results site_crawl_results[]
+  site_candidates    SiteCandidate        @relation(fields: [site_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_site_crawl_tasks_site")
+
+  @@index([created_at], map: "idx_site_crawl_tasks_created_at")
+  @@index([site_id], map: "idx_site_crawl_tasks_site_id")
+  @@index([status], map: "idx_site_crawl_tasks_status")
+}
+
+model site_groups {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name        String
+  description String?
+  color       String?
+  order       Int      @default(0)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([order], map: "idx_site_groups_order")
+  @@map("site_groups")
+}
+
+model AnalysisTask {
+  id           String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String          @map("user_id")
+  type         String
+  sourceType   String          @map("source_type")
+  sourceId     String          @map("source_id")
+  corpus       String
+  prompt       String?
+  result       Json?
+  status       String          @default("pending")
+  errorMessage String?         @map("error_message")
+  tokenUsage   Int?            @map("token_usage")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  completedAt  DateTime?       @map("completed_at") @db.Timestamp(6)
+  shares       AnalysisShare[]
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_tasks_user")
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_analysis_tasks_user_created")
+  @@index([status], map: "idx_analysis_tasks_status")
+  @@index([sourceType, sourceId], map: "idx_analysis_tasks_source")
+  @@map("analysis_tasks")
+}
+
+model AnalysisShare {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId       String            @map("task_id") @db.Uuid
+  userId       String            @map("user_id")
+  title        String
+  description  String?
+  isPublic     Boolean           @default(false) @map("is_public")
+  viewCount    Int               @default(0) @map("view_count")
+  likeCount    Int               @default(0) @map("like_count")
+  commentCount Int               @default(0) @map("comment_count")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  comments     AnalysisComment[]
+  likes        AnalysisLike[]
+  task         AnalysisTask      @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_shares_task")
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_shares_user")
+
+  @@index([userId], map: "idx_analysis_shares_user")
+  @@index([taskId], map: "idx_analysis_shares_task")
+  @@map("analysis_shares")
+}
+
+model AnalysisComment {
+  id                      String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shareId                 String            @map("share_id") @db.Uuid
+  userId                  String            @map("user_id")
+  content                 String
+  parentId                String?           @map("parent_id") @db.Uuid
+  likeCount               Int               @default(0) @map("like_count")
+  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt               DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  analysis_comments       AnalysisComment?  @relation("analysis_commentsToanalysis_comments", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_comments_parent")
+  other_analysis_comments AnalysisComment[] @relation("analysis_commentsToanalysis_comments")
+  share                   AnalysisShare     @relation(fields: [shareId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_comments_share")
+  user                    User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_comments_user")
+
+  @@index([shareId, createdAt(sort: Desc)], map: "idx_analysis_comments_share_created")
+  @@index([userId], map: "idx_analysis_comments_user")
+  @@map("analysis_comments")
+}
+
+model AnalysisLike {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shareId   String        @map("share_id") @db.Uuid
+  userId    String        @map("user_id")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  share     AnalysisShare @relation(fields: [shareId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_likes_share")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_analysis_likes_user")
+
+  @@unique([shareId, userId], map: "uk_analysis_likes_share_user")
+  @@index([shareId], map: "idx_analysis_likes_share")
+  @@index([userId], map: "idx_analysis_likes_user")
+  @@map("analysis_likes")
+}
+
+model UserSubscription {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @unique @map("user_id")
+  plan          String    @default("free")
+  analysisQuota Int       @default(3) @map("analysis_quota")
+  usedQuota     Int       @default(0) @map("used_quota")
+  quotaResetAt  DateTime  @default(now()) @map("quota_reset_at") @db.Timestamp(6)
+  expiresAt     DateTime? @map("expires_at") @db.Timestamp(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_subscriptions_user")
+
+  @@index([plan], map: "idx_user_subscriptions_plan")
+  @@map("user_subscriptions")
+}
+
+model DemandSource {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  platform         String
+  sourceId         String?           @map("source_id")
+  title            String?
+  content          String
+  url              String?
+  author           String?
+  upvotes          Int?              @default(0)
+  comments         Int?              @default(0)
+  metadata         Json?
+  crawledAt        DateTime          @default(now()) @map("crawled_at") @db.Timestamp(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  extractedDemands ExtractedDemand[]
+
+  @@index([platform, crawledAt(sort: Desc)], map: "idx_demand_sources_platform_crawled")
+  @@index([crawledAt(sort: Desc)], map: "idx_demand_sources_crawled_at")
+  @@index([platform], map: "idx_demand_sources_platform")
+  @@map("demand_sources")
+}
+
+model ExtractedDemand {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceId      String          @map("source_id") @db.Uuid
+  original_text String
+  cleaned_text  String
+  keywords      String[]        @default([])
+  category      String?
+  frequency     Int             @default(1)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  rankings      DemandRanking[]
+  source        DemandSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_extracted_demands_source")
+
+  @@index([sourceId], map: "idx_extracted_demands_source")
+  @@index([category], map: "idx_extracted_demands_category")
+  @@index([frequency(sort: Desc)], map: "idx_extracted_demands_frequency")
+  @@index([createdAt(sort: Desc)], map: "idx_extracted_demands_created_at")
+  @@map("extracted_demands")
+}
+
+model DemandRanking {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  demandId    String          @map("demand_id") @db.Uuid
+  rankingDate DateTime        @map("ranking_date") @db.Timestamp(6)
+  rank        Int
+  frequency   Int
+  trend       String?
+  notes       String?
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  demand      ExtractedDemand @relation(fields: [demandId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_demand_rankings_demand")
+
+  @@unique([rankingDate, rank], map: "uk_demand_rankings_date_rank")
+  @@index([rankingDate(sort: Desc)], map: "idx_demand_rankings_date")
+  @@index([demandId], map: "idx_demand_rankings_demand")
+  @@map("demand_rankings")
+}
+
+model DemandRadarTask {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status        String    @default("pending")
+  platforms     String[]  @default([])
+  sourcesCount  Int       @default(0) @map("sources_count")
+  demandsCount  Int       @default(0) @map("demands_count")
+  rankingsCount Int       @default(0) @map("rankings_count")
+  errorMessage  String?   @map("error_message")
+  startedAt     DateTime? @map("started_at") @db.Timestamp(6)
+  completedAt   DateTime? @map("completed_at") @db.Timestamp(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([status], map: "idx_demand_radar_tasks_status")
+  @@index([createdAt(sort: Desc)], map: "idx_demand_radar_tasks_created_at")
+  @@map("demand_radar_tasks")
+}
+
+model LotteryResult {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  period      String              @unique
+  date        DateTime            @db.Timestamp(6)
+  redBalls    String[]            @default([]) @map("red_balls")
+  blueBall    String              @map("blue_ball")
+  url         String?
+  metadata    Json?
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  comparisons LotteryComparison[]
+
+  @@index([period], map: "idx_lottery_results_period")
+  @@index([date(sort: Desc)], map: "idx_lottery_results_date")
+  @@map("lottery_results")
+}
+
+model LotteryPrediction {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  period      String?
+  redBalls    String[]            @default([]) @map("red_balls")
+  blueBall    String              @map("blue_ball")
+  confidence  Float               @default(0)
+  strategy    String
+  reasoning   String?
+  sources     String[]            @default([])
+  analysisId  String?             @map("analysis_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  userId      String?             @map("user_id")
+  comparisons LotteryComparison[]
+  analysis    LotteryAnalysis?    @relation(fields: [analysisId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lottery_predictions_analysis")
+  user        User?               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_lottery_predictions_user_id")
+  @@index([period], map: "idx_lottery_predictions_period")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_lottery_predictions_user_created")
+  @@index([analysisId], map: "idx_lottery_predictions_analysis_id")
+  @@index([createdAt(sort: Desc)], map: "idx_lottery_predictions_created_at")
+  @@map("lottery_predictions")
+}
+
+model LotteryAnalysis {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type        String
+  periods     Int
+  config      Json?
+  result      Json
+  summary     String?
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  userId      String?             @map("user_id")
+  user        User?               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  predictions LotteryPrediction[]
+
+  @@index([userId], map: "idx_lottery_analysis_user_id")
+  @@index([type], map: "idx_lottery_analysis_type")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_lottery_analysis_user_created")
+  @@index([createdAt(sort: Desc)], map: "idx_lottery_analysis_created_at")
+  @@map("lottery_analysis")
+}
+
+model LotteryUserConfig {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id")
+  method    String
+  config    Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_lottery_user_config_user_id")
+  @@index([method], map: "idx_lottery_user_config_method")
+  @@map("lottery_user_configs")
+}
+
+model LotteryComparison {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  predictionId String            @map("prediction_id") @db.Uuid
+  resultId     String?           @map("result_id") @db.Uuid
+  period       String?
+  redBallsHit  Int               @default(0) @map("red_balls_hit")
+  blueBallHit  Boolean           @default(false) @map("blue_ball_hit")
+  prizeLevel   String?           @map("prize_level")
+  prizeAmount  Float?            @default(0) @map("prize_amount")
+  accuracy     Float             @default(0)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  prediction   LotteryPrediction @relation(fields: [predictionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lottery_comparisons_prediction")
+  result       LotteryResult?    @relation(fields: [resultId], references: [id], onUpdate: NoAction, map: "fk_lottery_comparisons_result")
+
+  @@index([predictionId], map: "idx_lottery_comparisons_prediction_id")
+  @@index([resultId], map: "idx_lottery_comparisons_result_id")
+  @@index([period], map: "idx_lottery_comparisons_period")
+  @@index([prizeLevel], map: "idx_lottery_comparisons_prize_level")
+  @@index([createdAt(sort: Desc)], map: "idx_lottery_comparisons_created_at")
+  @@map("lottery_comparisons")
+}

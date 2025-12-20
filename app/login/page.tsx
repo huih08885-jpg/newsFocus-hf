@@ -29,6 +29,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // 确保发送和接收Cookie
         body: JSON.stringify(formData),
       })
 

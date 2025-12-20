@@ -4,13 +4,14 @@
 -- 数据库: Neon Serverless PostgreSQL
 -- PostgreSQL版本: 兼容 PostgreSQL 14+
 -- 用途: 正式环境数据库初始化
+-- 说明: 本脚本支持增量更新，可安全地在已有数据库上执行
 -- ============================================
 
 -- 注意: Neon 自动管理扩展，无需手动创建
 -- 如果需要 UUID 生成，Neon 已内置支持 gen_random_uuid()
 
 -- ============================================
--- 1. 创建表结构
+-- 1. 创建表结构（如果不存在）
 -- ============================================
 
 -- 平台表
@@ -37,6 +38,28 @@ CREATE TABLE IF NOT EXISTS "news_items" (
     CONSTRAINT "news_items_platformId_fkey" FOREIGN KEY ("platformId") REFERENCES "platforms"("platformId") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "news_items_platformId_title_crawledAt_key" UNIQUE ("platformId", "title", "crawledAt")
 );
+
+-- 添加情感分析字段（如果不存在）
+DO $$
+BEGIN
+    -- 添加 sentiment 字段
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'news_items' AND column_name = 'sentiment'
+    ) THEN
+        ALTER TABLE "news_items" ADD COLUMN "sentiment" TEXT;
+        RAISE NOTICE '已添加字段: news_items.sentiment';
+    END IF;
+
+    -- 添加 sentimentScore 字段
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'news_items' AND column_name = 'sentimentScore'
+    ) THEN
+        ALTER TABLE "news_items" ADD COLUMN "sentimentScore" DOUBLE PRECISION;
+        RAISE NOTICE '已添加字段: news_items.sentimentScore';
+    END IF;
+END $$;
 
 -- 关键词组表
 CREATE TABLE IF NOT EXISTS "keyword_groups" (
@@ -136,8 +159,64 @@ CREATE TABLE IF NOT EXISTS "sessions" (
     CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- 用户行为记录表（用于推荐系统）
+CREATE TABLE IF NOT EXISTS "user_actions" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "newsItemId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "user_actions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "user_actions_newsItemId_fkey" FOREIGN KEY ("newsItemId") REFERENCES "news_items"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- 用户收藏表
+CREATE TABLE IF NOT EXISTS "user_collections" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "newsItemId" TEXT NOT NULL,
+    "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "user_collections_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "user_collections_newsItemId_fkey" FOREIGN KEY ("newsItemId") REFERENCES "news_items"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "user_collections_userId_newsItemId_key" UNIQUE ("userId", "newsItemId")
+);
+
+-- 添加收藏表的 tags 和 notes 字段（如果不存在）
+DO $$
+BEGIN
+    -- 添加 tags 字段
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_collections' AND column_name = 'tags'
+    ) THEN
+        ALTER TABLE "user_collections" ADD COLUMN "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+        RAISE NOTICE '已添加字段: user_collections.tags';
+    END IF;
+
+    -- 添加 notes 字段
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_collections' AND column_name = 'notes'
+    ) THEN
+        ALTER TABLE "user_collections" ADD COLUMN "notes" TEXT;
+        RAISE NOTICE '已添加字段: user_collections.notes';
+    END IF;
+
+    -- 添加 updatedAt 字段
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_collections' AND column_name = 'updatedAt'
+    ) THEN
+        ALTER TABLE "user_collections" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+        RAISE NOTICE '已添加字段: user_collections.updatedAt';
+    END IF;
+END $$;
+
 -- ============================================
--- 2. 创建索引
+-- 2. 创建索引（如果不存在）
 -- ============================================
 
 -- 平台表索引
@@ -148,6 +227,8 @@ CREATE INDEX IF NOT EXISTS "platforms_enabled_idx" ON "platforms"("enabled");
 CREATE INDEX IF NOT EXISTS "news_items_platformId_crawledAt_idx" ON "news_items"("platformId", "crawledAt");
 CREATE INDEX IF NOT EXISTS "news_items_title_idx" ON "news_items"("title");
 CREATE INDEX IF NOT EXISTS "news_items_crawledAt_idx" ON "news_items"("crawledAt");
+CREATE INDEX IF NOT EXISTS "news_items_sentiment_idx" ON "news_items"("sentiment");
+CREATE INDEX IF NOT EXISTS "news_items_sentiment_crawledAt_idx" ON "news_items"("sentiment", "crawledAt");
 
 -- 关键词组表索引
 CREATE INDEX IF NOT EXISTS "keyword_groups_priority_idx" ON "keyword_groups"("priority");
@@ -183,6 +264,16 @@ CREATE INDEX IF NOT EXISTS "sessions_token_idx" ON "sessions"("token");
 CREATE INDEX IF NOT EXISTS "sessions_userId_idx" ON "sessions"("userId");
 CREATE INDEX IF NOT EXISTS "sessions_expiresAt_idx" ON "sessions"("expiresAt");
 
+-- 用户行为记录表索引
+CREATE INDEX IF NOT EXISTS "user_actions_userId_createdAt_idx" ON "user_actions"("userId", "createdAt");
+CREATE INDEX IF NOT EXISTS "user_actions_newsItemId_idx" ON "user_actions"("newsItemId");
+CREATE INDEX IF NOT EXISTS "user_actions_action_idx" ON "user_actions"("action");
+CREATE INDEX IF NOT EXISTS "user_actions_userId_action_createdAt_idx" ON "user_actions"("userId", "action", "createdAt");
+
+-- 用户收藏表索引
+CREATE INDEX IF NOT EXISTS "user_collections_userId_createdAt_idx" ON "user_collections"("userId", "createdAt");
+CREATE INDEX IF NOT EXISTS "user_collections_newsItemId_idx" ON "user_collections"("newsItemId");
+
 -- ============================================
 -- 3. 创建触发器（自动更新 updatedAt）
 -- ============================================
@@ -196,30 +287,68 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 为需要的表添加触发器
-CREATE TRIGGER update_platforms_updated_at BEFORE UPDATE ON "platforms"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- 为需要的表添加触发器（如果不存在）
+DO $$
+BEGIN
+    -- platforms 表触发器
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_platforms_updated_at'
+    ) THEN
+        CREATE TRIGGER update_platforms_updated_at BEFORE UPDATE ON "platforms"
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
 
-CREATE TRIGGER update_news_items_updated_at BEFORE UPDATE ON "news_items"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    -- news_items 表触发器
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_news_items_updated_at'
+    ) THEN
+        CREATE TRIGGER update_news_items_updated_at BEFORE UPDATE ON "news_items"
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
 
-CREATE TRIGGER update_keyword_groups_updated_at BEFORE UPDATE ON "keyword_groups"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    -- keyword_groups 表触发器
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_keyword_groups_updated_at'
+    ) THEN
+        CREATE TRIGGER update_keyword_groups_updated_at BEFORE UPDATE ON "keyword_groups"
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
 
-CREATE TRIGGER update_news_matches_updated_at BEFORE UPDATE ON "news_matches"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    -- news_matches 表触发器
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_news_matches_updated_at'
+    ) THEN
+        CREATE TRIGGER update_news_matches_updated_at BEFORE UPDATE ON "news_matches"
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
 
-CREATE TRIGGER update_system_configs_updated_at BEFORE UPDATE ON "system_configs"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    -- system_configs 表触发器
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_system_configs_updated_at'
+    ) THEN
+        CREATE TRIGGER update_system_configs_updated_at BEFORE UPDATE ON "system_configs"
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
 
-CREATE TRIGGER update_crawl_tasks_updated_at BEFORE UPDATE ON "crawl_tasks"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    -- crawl_tasks 表触发器
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_crawl_tasks_updated_at'
+    ) THEN
+        CREATE TRIGGER update_crawl_tasks_updated_at BEFORE UPDATE ON "crawl_tasks"
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
 
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON "users"
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    -- users 表触发器
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at'
+    ) THEN
+        CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON "users"
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
 -- ============================================
--- 4. 插入初始数据
+-- 4. 插入初始数据（如果不存在）
 -- ============================================
 
 -- 插入平台数据（使用 gen_random_uuid() 生成 ID，Neon 支持）
@@ -274,5 +403,6 @@ BEGIN
     RAISE NOTICE '正式环境数据库初始化完成！';
     RAISE NOTICE '已创建所有表、索引、触发器和初始数据。';
     RAISE NOTICE '包括用户认证相关的表（users, sessions）。';
+    RAISE NOTICE '包括情感分析字段（sentiment, sentimentScore）。';
     RAISE NOTICE 'Neon 数据库已准备就绪。';
 END $$;

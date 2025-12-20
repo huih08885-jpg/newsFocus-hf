@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { cache } from '@/lib/services/cache'
 
+// 强制动态渲染（因为使用了 searchParams）
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -16,10 +19,12 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get('dateTo') 
       ? new Date(searchParams.get('dateTo')!) 
       : undefined
+    const timeFilterType = searchParams.get('timeFilterType') as 'publishedAt' | 'crawledAt' | null || 'crawledAt' // 时间筛选类型，默认为爬取时间
     const limit = Math.min(Number(searchParams.get('limit') || 50), 100)
     const offset = Number(searchParams.get('offset') || 0)
     const sortBy = searchParams.get('sortBy') || 'crawledAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
+    const skipCache = searchParams.get('skipCache') === 'true' // 用于调试，跳过缓存
 
     // 构建缓存key
     const cacheKey = `news:${JSON.stringify({
@@ -28,20 +33,23 @@ export async function GET(request: NextRequest) {
       minWeight,
       dateFrom: dateFrom?.toISOString(),
       dateTo: dateTo?.toISOString(),
+      timeFilterType,
       limit,
       offset,
       sortBy,
       sortOrder,
     })}`
 
-    // 尝试从缓存获取
-    const cached = await cache.get(cacheKey)
-    if (cached) {
-      return NextResponse.json({
-        success: true,
-        data: cached,
-        cached: true,
-      })
+    // 尝试从缓存获取（除非明确要求跳过）
+    if (!skipCache) {
+      const cached = await cache.get(cacheKey)
+      if (cached) {
+        return NextResponse.json({
+          success: true,
+          data: cached,
+          cached: true,
+        })
+      }
     }
 
     const where: any = {}
@@ -50,10 +58,12 @@ export async function GET(request: NextRequest) {
       where.platformId = { in: platforms }
     }
 
+    // 根据时间筛选类型设置不同的时间字段
     if (dateFrom || dateTo) {
-      where.crawledAt = {}
-      if (dateFrom) where.crawledAt.gte = dateFrom
-      if (dateTo) where.crawledAt.lte = dateTo
+      const timeField = timeFilterType === 'publishedAt' ? 'publishedAt' : 'crawledAt'
+      where[timeField] = {}
+      if (dateFrom) where[timeField].gte = dateFrom
+      if (dateTo) where[timeField].lte = dateTo
     }
 
     // 如果指定了关键词组或最小权重，需要通过matches查询
@@ -90,11 +100,21 @@ export async function GET(request: NextRequest) {
           if (!platforms.includes(item.platformId)) return false
         }
         
-        // 日期过滤
+        // 日期过滤（根据时间筛选类型）
         if (dateFrom || dateTo) {
-          const crawledAt = new Date(item.crawledAt)
-          if (dateFrom && crawledAt < dateFrom) return false
-          if (dateTo && crawledAt > dateTo) return false
+          const timeField = timeFilterType === 'publishedAt' ? item.publishedAt : item.crawledAt
+          if (!timeField) {
+            // 如果筛选发布时间但该新闻没有发布时间，则过滤掉
+            if (timeFilterType === 'publishedAt') return false
+            // 否则使用爬取时间作为后备
+            const crawledAt = new Date(item.crawledAt)
+            if (dateFrom && crawledAt < dateFrom) return false
+            if (dateTo && crawledAt > dateTo) return false
+          } else {
+            const timeValue = new Date(timeField)
+            if (dateFrom && timeValue < dateFrom) return false
+            if (dateTo && timeValue > dateTo) return false
+          }
         }
         
         return true
@@ -191,17 +211,8 @@ export async function GET(request: NextRequest) {
       data: result,
     })
   } catch (error) {
-    console.error('Error fetching news:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'QUERY_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      },
-      { status: 500 }
-    )
+    const { handleError } = await import('@/lib/utils/error-handler')
+    return handleError(error, 'NewsAPI', '获取新闻列表失败')
   }
 }
 

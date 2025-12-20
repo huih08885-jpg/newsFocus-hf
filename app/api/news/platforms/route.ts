@@ -5,6 +5,10 @@ import { prisma } from '@/lib/db/prisma'
  * 获取各平台的最新热点新闻
  * GET /api/news/platforms?limit=10
  */
+
+// 强制动态渲染（因为使用了 searchParams）
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
@@ -57,10 +61,14 @@ export async function GET(request: NextRequest) {
             title: item.title,
             url: item.url,
             mobileUrl: item.mobileUrl,
+            content: item.content,
+            publishedAt: item.publishedAt,
             rank: item.rank,
             crawledAt: item.crawledAt,
             weight: item.matches[0]?.weight || 0,
             keywordGroup: item.matches[0]?.keywordGroup?.name || null,
+            sentiment: item.sentiment,
+            sentimentScore: item.sentimentScore,
           })),
           latestUpdate,
           count: newsItems.length,

@@ -133,6 +133,8 @@ pnpm start            # 启动生产服务器
 
 # 数据库
 pnpm db:generate      # 生成 Prisma 客户端
+pnpm db:pull          # 从数据库拉取结构（Database First）
+pnpm db:sync          # 同步数据库结构并生成客户端（推荐）
 pnpm db:migrate       # 运行数据库迁移（开发）
 pnpm db:migrate:deploy # 部署数据库迁移（生产）
 pnpm db:studio        # 打开 Prisma Studio

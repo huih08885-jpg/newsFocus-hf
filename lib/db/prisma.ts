@@ -1,12 +1,13 @@
 import { PrismaClient } from '@prisma/client'
 
 // 全局变量，用于在开发环境中重用 Prisma 客户端
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+declare global {
+  // eslint-disable-next-line no-var
+  var __prisma: PrismaClient | undefined
 }
 
 // 根据环境配置 Prisma 客户端
-const createPrismaClient = () => {
+const createPrismaClient = (): PrismaClient => {
   const databaseUrl = process.env.DATABASE_URL
 
   if (!databaseUrl) {
@@ -24,11 +25,6 @@ const createPrismaClient = () => {
     log: isDevelopment
       ? ['query', 'error', 'warn']
       : ['error'],
-    datasources: {
-      db: {
-        url: databaseUrl,
-      },
-    },
   })
 
   // 如果是 Neon 数据库，配置连接池
@@ -47,17 +43,39 @@ const createPrismaClient = () => {
 }
 
 // 在开发环境中，使用全局变量避免创建多个 Prisma 客户端实例
-export const prisma =
-  globalForPrisma.prisma ?? createPrismaClient()
+// 在生产环境中，每次都创建新实例
+let prismaInstance: PrismaClient
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
+try {
+  prismaInstance = globalThis.__prisma ?? createPrismaClient()
+  
+  if (process.env.NODE_ENV !== 'production') {
+    globalThis.__prisma = prismaInstance
+  }
+} catch (error) {
+  console.error('Failed to initialize Prisma client:', error)
+  // 创建一个占位符客户端，避免应用崩溃
+  prismaInstance = new PrismaClient({
+    log: ['error'],
+  })
 }
+
+export const prisma: PrismaClient = prismaInstance
 
 // 优雅关闭连接
 if (typeof window === 'undefined') {
   process.on('beforeExit', async () => {
     await prisma.$disconnect()
+  })
+  
+  process.on('SIGINT', async () => {
+    await prisma.$disconnect()
+    process.exit(0)
+  })
+  
+  process.on('SIGTERM', async () => {
+    await prisma.$disconnect()
+    process.exit(0)
   })
 }
 

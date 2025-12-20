@@ -22,9 +22,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <div className="flex min-h-screen flex-col">
           <Header />
-          <div className="flex flex-1">
+          <div className="flex flex-1 pt-16">
             <Sidebar />
-            <main className="flex-1 bg-background">
+            <main className="flex-1 bg-background md:ml-64 overflow-auto">
               {children}
             </main>
           </div>

@@ -70,6 +70,18 @@ export async function POST(request: NextRequest) {
       take: 100,
     })
 
+    // 检测新增新闻：首次匹配时间在报告日期当天的为新增
+    const newNewsIds = new Set<string>()
+    for (const match of matches) {
+      const firstMatchedDate = new Date(match.firstMatchedAt)
+      if (
+        firstMatchedDate >= startOfDay &&
+        firstMatchedDate <= endOfDay
+      ) {
+        newNewsIds.add(match.newsItemId)
+      }
+    }
+
     // 按关键词组分组
     const statsMap = new Map<string, any>()
     for (const match of matches) {
@@ -83,7 +95,7 @@ export async function POST(request: NextRequest) {
       statsMap.get(groupId)!.newsItems.push({
         newsItem: match.newsItem,
         weight: match.weight,
-        isNew: false, // TODO: 检测新增
+        isNew: newNewsIds.has(match.newsItemId),
       })
     }
 

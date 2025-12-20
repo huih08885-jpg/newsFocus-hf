@@ -12,10 +12,14 @@ interface NewsItem {
   title: string
   url?: string | null
   mobileUrl?: string | null
+  content?: string | null
+  publishedAt?: string | null
   rank: number
   crawledAt: string
   weight?: number
   keywordGroup?: string | null
+  sentiment?: string | null
+  sentimentScore?: number | null
 }
 
 interface PlatformNewsCardProps {
@@ -68,6 +72,18 @@ const platformColors: Record<string, string> = {
   cailianpress: 'bg-red-500 dark:bg-red-500',
 }
 
+const formatPublishedTime = (publishedAt?: string | null) => {
+  if (!publishedAt) return null
+  const date = new Date(publishedAt)
+  if (isNaN(date.getTime())) return null
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 // 格式化热度显示
 function formatHeat(weight?: number): string | null {
   if (!weight || weight <= 0) return null
@@ -88,6 +104,35 @@ function isNew(crawledAt: string): boolean {
   const now = new Date()
   const diffMinutes = (now.getTime() - date.getTime()) / (1000 * 60)
   return diffMinutes < 30 // 30分钟内算新
+}
+
+// 获取情感标识
+function getSentimentBadge(sentiment?: string | null, score?: number | null) {
+  if (!sentiment) return null
+  
+  const badges = {
+    positive: {
+      text: '正面',
+      className: 'bg-green-500/20 text-green-600 dark:text-green-400',
+    },
+    negative: {
+      text: '负面',
+      className: 'bg-red-500/20 text-red-600 dark:text-red-400',
+    },
+    neutral: {
+      text: '中性',
+      className: 'bg-gray-500/20 text-gray-600 dark:text-gray-400',
+    },
+  }
+  
+  const badge = badges[sentiment as keyof typeof badges]
+  if (!badge) return null
+  
+  return (
+    <span className={`inline-flex items-center px-1 py-0 text-[10px] font-medium rounded ${badge.className}`}>
+      {badge.text}
+    </span>
+  )
 }
 
 export function PlatformNewsCard({ platform, items, latestUpdate, loading }: PlatformNewsCardProps) {
@@ -147,6 +192,7 @@ export function PlatformNewsCard({ platform, items, latestUpdate, loading }: Pla
               const heatText = formatHeat(item.weight)
               const showHot = isHot(item.weight)
               const showNew = isNew(item.crawledAt)
+              const sentimentBadge = getSentimentBadge(item.sentiment, item.sentimentScore)
               
               return (
                 <div
@@ -160,7 +206,7 @@ export function PlatformNewsCard({ platform, items, latestUpdate, loading }: Pla
                           <h3 className="text-xs leading-relaxed text-foreground group-hover:text-primary line-clamp-2 flex-1">
                             {item.title}
                           </h3>
-                          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5 flex-wrap">
                             {showHot && (
                               <span className="inline-flex items-center px-1 py-0 text-[10px] font-medium bg-red-500/20 text-red-500 rounded">
                                 热
@@ -171,14 +217,25 @@ export function PlatformNewsCard({ platform, items, latestUpdate, loading }: Pla
                                 新
                               </span>
                             )}
+                            {sentimentBadge}
                           </div>
                         </div>
+                        {item.publishedAt && (
+                          <div className="text-[10px] text-muted-foreground">
+                            发布时间：{formatPublishedTime(item.publishedAt)}
+                          </div>
+                        )}
                         {heatText && (
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] text-muted-foreground font-medium">
                               {heatText}
                             </span>
                           </div>
+                        )}
+                        {item.content && (
+                          <p className="mt-1 text-[11px] text-muted-foreground line-clamp-3 whitespace-pre-line">
+                            {item.content}
+                          </p>
                         )}
                       </div>
                     </div>

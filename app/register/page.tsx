@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -18,9 +19,20 @@ export default function RegisterPage() {
     password: "",
     name: "",
   })
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!acceptedPrivacy) {
+      toast({
+        title: "注册失败",
+        description: "请先阅读并同意隐私政策",
+        variant: "destructive",
+      })
+      return
+    }
+    
     setLoading(true)
 
     try {
@@ -29,6 +41,7 @@ export default function RegisterPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // 确保发送和接收Cookie
         body: JSON.stringify(formData),
       })
 
@@ -113,7 +126,24 @@ export default function RegisterPage() {
                 密码长度至少6位
               </p>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="privacy"
+                checked={acceptedPrivacy}
+                onCheckedChange={(checked) => setAcceptedPrivacy(checked === true)}
+                disabled={loading}
+              />
+              <label
+                htmlFor="privacy"
+                className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                我已阅读并同意
+                <Link href="/privacy" target="_blank" className="text-primary hover:underline ml-1">
+                  隐私政策
+                </Link>
+              </label>
+            </div>
+            <Button type="submit" className="w-full" disabled={loading || !acceptedPrivacy}>
               {loading ? "注册中..." : "注册"}
             </Button>
           </form>

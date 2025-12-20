@@ -4,7 +4,25 @@ import { CrawlerService } from '@/lib/services/crawler'
 import { MatcherService } from '@/lib/services/matcher'
 import { CalculatorService } from '@/lib/services/calculator'
 
+/**
+ * ========== 已注释：爬虫管理模块相关API ==========
+ * 定时爬虫任务
+ * GET /api/cron/crawl
+ */
 export async function GET(request: NextRequest) {
+  // ========== 已注释：爬虫管理模块相关API ==========
+  return NextResponse.json(
+    {
+      success: false,
+      error: {
+        code: 'MODULE_DISABLED',
+        message: '爬虫管理模块已禁用',
+      },
+    },
+    { status: 503 }
+  )
+  
+  /* ========== 原始代码已注释 ==========
   // 验证Cron Secret
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
@@ -165,5 +183,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+  ========== 原始代码结束 ========== */
 }
 

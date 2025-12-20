@@ -56,13 +56,22 @@ export class MatcherService {
   ): Promise<MatchResult | null> {
     const groups = keywordGroups || await this.getEnabledKeywordGroups()
 
+    if (groups.length === 0) {
+      console.warn('[Matcher] 没有可用的关键词组进行匹配')
+      return null
+    }
+
+    console.log(`[Matcher] 开始匹配标题: "${title.substring(0, 50)}..."，关键词组数量: ${groups.length}`)
+
     for (const group of groups) {
       const result = this.matchesGroup(title, group)
       if (result.matched) {
+        console.log(`[Matcher] 匹配成功: 关键词组="${group.name || '未命名'}"，匹配词: ${result.matchedWords?.join(', ')}`)
         return result
       }
     }
 
+    console.log(`[Matcher] 未匹配到任何关键词组`)
     return null
   }
 

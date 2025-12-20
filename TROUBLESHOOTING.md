@@ -183,6 +183,68 @@ taskkill /PID <PID> /F
 lsof -ti:3000 | xargs kill
 ```
 
+### 8. Prisma 报 `news_items.publishedAt` 不存在
+
+**错误示例：**
+```
+Invalid prisma.newsItem.findMany() invocation:
+The column news_items.publishedAt does not exist
+```
+
+**解决方案：**
+
+1. **检查数据库实际列**
+```bash
+npm run check:db-columns
+```
+
+2. **按库类型执行 SQL**
+```sql
+-- 开发库 (Windows 本地)
+ALTER TABLE news_items ADD COLUMN "publishedAt" TIMESTAMP NULL;
+
+-- 生产库（Neon / Linux）
+ALTER TABLE news_items ADD COLUMN "publishedat" TIMESTAMP NULL;
+```
+
+3. **确保 Prisma 字段映射正确**
+```prisma
+publishedAt DateTime? @map("publishedat")
+```
+
+4. **重新生成 Prisma Client**
+```bash
+npm run db:generate
+```
+
+### 9. 爬虫任务卡住或无法强制结束
+
+**症状：**
+- `crawl_tasks` 表中存在长时间 `pending`/`running` 状态
+- 前端“强制结束任务”按钮无效果
+
+**解决方案：**
+
+1. **使用脚本批量清理**
+```bash
+# 清理超过 30 分钟未完成的任务
+npm run cleanup:crawl-tasks
+
+# 指定任务ID
+npm run cleanup:crawl-tasks -- --task <taskId>
+
+# 自定义超时时长（分钟）
+npm run cleanup:crawl-tasks -- --minutes 15
+```
+
+2. **确认 API 正常**
+- 前端按钮会请求 `/api/crawl/cleanup`
+- 检查服务器日志确认返回 `success`
+
+3. **持续卡住时检查**
+- `lib/services/crawl-task-manager.ts` 中的阈值配置
+- 平台接口是否频繁 403/429，可配合 `npm run diagnose:crawlers` 查看
+
 ## 🔧 完整重置步骤
 
 如果以上方法都不行，尝试完全重置：

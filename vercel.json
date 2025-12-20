@@ -6,6 +6,14 @@
     {
       "path": "/api/cron/cleanup",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/demand-radar",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-logs",
+      "schedule": "0 3 * * *"
     }
   ],
   "env": {

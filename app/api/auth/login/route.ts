@@ -4,6 +4,9 @@ import { createSession } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
+// 强制动态渲染（因为使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -23,6 +26,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 查找用户
+    if (!prisma) {
+      throw new Error('Prisma client is not initialized')
+    }
+    
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     })
@@ -80,17 +87,8 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Login error:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'SERVER_ERROR',
-          message: error instanceof Error ? error.message : '登录失败',
-        },
-      },
-      { status: 500 }
-    )
+    const { handleError } = await import('@/lib/utils/error-handler')
+    return handleError(error, 'AuthAPI', '登录失败')
   }
 }
 

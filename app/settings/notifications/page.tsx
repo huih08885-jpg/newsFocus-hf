@@ -34,25 +34,90 @@ export default function NotificationsPage() {
   })
 
   useEffect(() => {
-    // 从环境变量或API加载配置
-    // 这里简化处理，实际应从API获取
+    // 从API加载配置
+    const loadConfig = async () => {
+      try {
+        const res = await fetch("/api/config")
+        const data = await res.json()
+        
+        if (data.success && data.data) {
+          const configs = data.data
+          setFormData({
+            enableNotification: configs['notification.enabled'] ?? true,
+            pushWindowEnabled: configs['notification.push_window_enabled'] ?? false,
+            pushWindowStart: configs['notification.push_window_start'] || "20:00",
+            pushWindowEnd: configs['notification.push_window_end'] || "22:00",
+            oncePerDay: configs['notification.once_per_day'] ?? true,
+            feishuWebhookUrl: configs['notification.feishu_webhook_url'] || "",
+            dingtalkWebhookUrl: configs['notification.dingtalk_webhook_url'] || "",
+            weworkWebhookUrl: configs['notification.wework_webhook_url'] || "",
+            telegramBotToken: configs['notification.telegram_bot_token'] || "",
+            telegramChatId: configs['notification.telegram_chat_id'] || "",
+            emailFrom: configs['notification.email_from'] || "",
+            emailPassword: configs['notification.email_password'] || "",
+            emailTo: configs['notification.email_to'] || "",
+            emailSmtpServer: configs['notification.email_smtp_server'] || "",
+            emailSmtpPort: configs['notification.email_smtp_port'] || "",
+            ntfyServerUrl: configs['notification.ntfy_server_url'] || "https://ntfy.sh",
+            ntfyTopic: configs['notification.ntfy_topic'] || "",
+            ntfyToken: configs['notification.ntfy_token'] || "",
+          })
+        }
+      } catch (error) {
+        console.error("加载配置失败:", error)
+      }
+    }
+    
+    loadConfig()
   }, [])
 
   const handleSave = async () => {
     setLoading(true)
     try {
-      // TODO: 调用API保存配置
-      await new Promise((resolve) => setTimeout(resolve, 500)) // 模拟API调用
+      const configs = {
+        'notification.enabled': formData.enableNotification,
+        'notification.push_window_enabled': formData.pushWindowEnabled,
+        'notification.push_window_start': formData.pushWindowStart,
+        'notification.push_window_end': formData.pushWindowEnd,
+        'notification.once_per_day': formData.oncePerDay,
+        'notification.feishu_webhook_url': formData.feishuWebhookUrl,
+        'notification.dingtalk_webhook_url': formData.dingtalkWebhookUrl,
+        'notification.wework_webhook_url': formData.weworkWebhookUrl,
+        'notification.telegram_bot_token': formData.telegramBotToken,
+        'notification.telegram_chat_id': formData.telegramChatId,
+        'notification.email_from': formData.emailFrom,
+        'notification.email_password': formData.emailPassword,
+        'notification.email_to': formData.emailTo,
+        'notification.email_smtp_server': formData.emailSmtpServer,
+        'notification.email_smtp_port': formData.emailSmtpPort,
+        'notification.ntfy_server_url': formData.ntfyServerUrl,
+        'notification.ntfy_topic': formData.ntfyTopic,
+        'notification.ntfy_token': formData.ntfyToken,
+      }
 
-      toast({
-        title: "成功",
-        description: "通知配置已保存",
-        variant: "success",
+      const res = await fetch("/api/config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(configs),
       })
+
+      const data = await res.json()
+
+      if (data.success) {
+        toast({
+          title: "成功",
+          description: "通知配置已保存",
+          variant: "success",
+        })
+      } else {
+        throw new Error(data.error?.message || "保存失败")
+      }
     } catch (error) {
       toast({
         title: "错误",
-        description: "保存配置失败",
+        description: error instanceof Error ? error.message : "保存配置失败",
         variant: "destructive",
       })
     } finally {

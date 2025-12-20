@@ -117,14 +117,16 @@ export default function SettingsPage() {
       <Tabs defaultValue="general" className="space-y-4">
         <TabsList>
           <TabsTrigger value="general">基础设置</TabsTrigger>
-          <TabsTrigger value="keywords">关键词</TabsTrigger>
+          {/* ========== 已隐藏的爬虫相关标签 ========== */}
+          {/* <TabsTrigger value="keywords">关键词</TabsTrigger> */}
           <TabsTrigger value="notifications">通知</TabsTrigger>
-          <TabsTrigger value="platforms">平台</TabsTrigger>
+          {/* <TabsTrigger value="platforms">平台</TabsTrigger> */}
           <TabsTrigger value="advanced">高级</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-4">
-          <Card>
+          {/* ========== 已隐藏的爬虫相关设置 ========== */}
+          {/* <Card>
             <CardHeader>
               <CardTitle>爬取设置</CardTitle>
               <CardDescription>配置数据爬取相关参数</CardDescription>
@@ -265,10 +267,23 @@ export default function SettingsPage() {
                 保存
               </Button>
             </CardContent>
+          </Card> */}
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>基础设置</CardTitle>
+              <CardDescription>系统基础配置</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                基础设置功能正在开发中
+              </p>
+            </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="keywords" className="space-y-4">
+        {/* ========== 已隐藏的爬虫相关标签页 ========== */}
+        {/* <TabsContent value="keywords" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>关键词组管理</CardTitle>
@@ -280,7 +295,7 @@ export default function SettingsPage() {
               </Link>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
 
         <TabsContent value="notifications" className="space-y-4">
           <Card>
@@ -296,7 +311,8 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="platforms" className="space-y-4">
+        {/* ========== 已隐藏的爬虫相关标签页 ========== */}
+        {/* <TabsContent value="platforms" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>平台管理</CardTitle>
@@ -308,7 +324,7 @@ export default function SettingsPage() {
               </Link>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
 
         <TabsContent value="advanced" className="space-y-4">
           <Card>

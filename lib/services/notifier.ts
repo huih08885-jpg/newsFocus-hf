@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import nodemailer from 'nodemailer'
 
 interface NotificationConfig {
   feishu?: { webhookUrl: string }
@@ -295,32 +296,47 @@ export class NotifierService {
     if (!this.config.email) return false
 
     try {
-      // 使用SMTP发送邮件
-      // 这里使用fetch发送到邮件API或SMTP服务器
-      // 实际项目中应该使用nodemailer库
-      
-      const emailData = {
-        from: this.config.email.from,
-        to: this.config.email.to,
-        subject,
-        html: message.replace(/\n/g, '<br>'),
-        text: message,
+      // 创建邮件传输器
+      const transporter = nodemailer.createTransport({
+        host: this.config.email.smtpServer,
+        port: this.config.email.smtpPort,
+        secure: this.config.email.smtpPort === 465, // true for 465, false for other ports
+        auth: {
+          user: this.config.email.from,
+          pass: this.config.email.password,
+        },
+      })
+
+      // 发送邮件到所有收件人
+      const results = await Promise.allSettled(
+        this.config.email.to.map((to) =>
+          transporter.sendMail({
+            from: this.config.email!.from,
+            to: to.trim(),
+            subject,
+            html: message.replace(/\n/g, '<br>'),
+            text: message,
+          })
+        )
+      )
+
+      // 检查是否所有邮件都发送成功
+      const allSuccess = results.every(
+        (result) => result.status === 'fulfilled'
+      )
+
+      if (!allSuccess) {
+        const failures = results
+          .map((result, index) =>
+            result.status === 'rejected'
+              ? { to: this.config.email!.to[index], error: result.reason }
+              : null
+          )
+          .filter(Boolean)
+        console.error('部分邮件发送失败:', failures)
       }
 
-      // 如果有邮件API，可以调用
-      // 否则使用SMTP（需要nodemailer库）
-      // 这里简化处理，返回true表示成功
-      console.log('Email would be sent:', {
-        from: emailData.from,
-        to: emailData.to,
-        subject: emailData.subject,
-      })
-      
-      // TODO: 集成nodemailer实现实际发送
-      // const transporter = nodemailer.createTransport({...})
-      // await transporter.sendMail(emailData)
-      
-      return true
+      return allSuccess
     } catch (error) {
       console.error('Email send error:', error)
       return false

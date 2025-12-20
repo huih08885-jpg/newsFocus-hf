@@ -1,14 +1,61 @@
 import { notFound } from "next/navigation"
+import type { Metadata } from "next"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ExternalLink, Share2 } from "lucide-react"
+import { ArrowLeft, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/db/prisma"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
+import { ShareButton } from "@/components/news/share-button"
 
 interface PageProps {
   params: { id: string }
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const newsItem = await prisma.newsItem.findUnique({
+    where: { id: params.id },
+    include: {
+      platform: true,
+    },
+  })
+
+  if (!newsItem) {
+    return {
+      title: "新闻不存在",
+    }
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://newsfocus.app"
+  const newsUrl = newsItem.url || `${baseUrl}/news/${newsItem.id}`
+  const description = `来自${newsItem.platform.name}的热点新闻，排名第${newsItem.rank}位`
+
+  return {
+    title: newsItem.title,
+    description,
+    openGraph: {
+      title: newsItem.title,
+      description,
+      url: newsUrl,
+      siteName: "NewsFocus",
+      type: "article",
+      images: [
+        {
+          url: `${baseUrl}/og-image.png`,
+          width: 1200,
+          height: 630,
+          alt: newsItem.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: newsItem.title,
+      description,
+      images: [`${baseUrl}/og-image.png`],
+    },
+  }
 }
 
 export default async function NewsDetailPage({ params }: PageProps) {
@@ -190,10 +237,15 @@ export default async function NewsDetailPage({ params }: PageProps) {
             </Button>
           </a>
         )}
-        <Button variant="outline">
-          <Share2 className="h-4 w-4 mr-2" />
-          分享
-        </Button>
+        <ShareButton
+          newsItem={{
+            id: params.id,
+            title: newsItem.title,
+            url: newsItem.url || null,
+            platform: newsItem.platform,
+            sentiment: (newsItem as any).sentiment || null,
+          }}
+        />
       </div>
     </div>
   )

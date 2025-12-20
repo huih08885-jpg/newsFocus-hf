@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, TestTube, RefreshCw } from "lucide-react"
+import { Plus, Edit, Trash2, TestTube, RefreshCw, Eye, Globe } from "lucide-react"
 import { KeywordFormDialog } from "@/components/keywords/keyword-form-dialog"
 import { KeywordTestDialog } from "@/components/keywords/keyword-test-dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function KeywordsPage() {
   const { toast } = useToast()
@@ -30,6 +31,7 @@ export default function KeywordsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [testDialogOpen, setTestDialogOpen] = useState(false)
   const [testingGroup, setTestingGroup] = useState<KeywordGroup | undefined>()
+  const [candidateGroup, setCandidateGroup] = useState<KeywordGroup | null>(null)
 
   const loadKeywordGroups = async () => {
     setLoading(true)
@@ -219,6 +221,24 @@ export default function KeywordsPage() {
                               .join(", ")}
                           </p>
                         )}
+                        {group.customWebsites && Array.isArray(group.customWebsites) && group.customWebsites.length > 0 && (
+                          <p>
+                            <span className="font-medium">自定义网站:</span>{" "}
+                            {group.customWebsites
+                              .filter((ws: any) => ws && ws.enabled !== false)
+                              .map((ws: any) => ws.name || "未命名")
+                              .join(", ")}
+                            {group.customWebsites.filter((ws: any) => ws && ws.enabled === false).length > 0 && (
+                              <span className="text-muted-foreground ml-2">
+                                (已禁用: {group.customWebsites.filter((ws: any) => ws && ws.enabled === false).length}个)
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        <DiscoveredWebsitesPreview
+                          group={group}
+                          onView={() => setCandidateGroup(group)}
+                        />
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -290,7 +310,161 @@ export default function KeywordsPage() {
           keywordGroup={testingGroup}
         />
       )}
+
+      <CandidateDialog
+        group={candidateGroup}
+        onClose={() => setCandidateGroup(null)}
+        onEdit={() => {
+          if (candidateGroup) {
+            setEditingGroup(candidateGroup)
+            setDialogOpen(true)
+          }
+          setCandidateGroup(null)
+        }}
+      />
     </div>
+  )
+}
+
+type DiscoveredCandidate = {
+  candidateId?: string
+  domain?: string
+  title?: string
+  url?: string
+  snippet?: string
+  createdAt?: string
+}
+
+function parseDiscoveredWebsites(value: KeywordGroup["discoveredWebsites"]): DiscoveredCandidate[] {
+  if (!Array.isArray(value)) return []
+  const list: DiscoveredCandidate[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue
+    const candidate = {
+      candidateId: (item as any).candidateId ?? (item as any).id,
+      domain: (item as any).domain ?? tryExtractDomain((item as any).url),
+      title: (item as any).title,
+      url: (item as any).url,
+      snippet: (item as any).snippet,
+      createdAt: (item as any).createdAt,
+    }
+    const key = candidate.candidateId || candidate.url || candidate.domain
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    list.push(candidate)
+  }
+  return list.sort((a, b) => {
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0
+    return tb - ta
+  })
+}
+
+function tryExtractDomain(url?: string) {
+  if (!url) return undefined
+  try {
+    const parsed = new URL(url)
+    return parsed.hostname
+  } catch {
+    return undefined
+  }
+}
+
+function DiscoveredWebsitesPreview({
+  group,
+  onView,
+}: {
+  group: KeywordGroup
+  onView: () => void
+}) {
+  const candidates = parseDiscoveredWebsites(group.discoveredWebsites)
+  if (!candidates.length) return null
+  const preview = candidates.slice(0, 3)
+  return (
+    <div className="pt-2 border-t mt-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-sm font-medium">候选站点</span>
+        <Badge variant="outline">{candidates.length}</Badge>
+        <Button variant="ghost" size="sm" onClick={onView}>
+          <Eye className="h-4 w-4 mr-1" />
+          查看
+        </Button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {preview.map((item) => (
+          <span
+            key={item.candidateId || item.url || item.domain}
+            className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground flex items-center gap-1"
+          >
+            <Globe className="h-3 w-3" />
+            {item.domain || item.title || item.url}
+          </span>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground mt-2">
+        可在“编辑”对话框中使用「导入候选」快速生成配置。
+      </p>
+    </div>
+  )
+}
+
+function CandidateDialog({
+  group,
+  onClose,
+  onEdit,
+}: {
+  group: KeywordGroup | null
+  onClose: () => void
+  onEdit: () => void
+}) {
+  const candidates = group ? parseDiscoveredWebsites(group.discoveredWebsites) : []
+  return (
+    <Dialog open={!!group} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>
+            候选站点 - {group?.name || "未命名"}
+          </DialogTitle>
+        </DialogHeader>
+        {!candidates.length ? (
+          <p className="text-sm text-muted-foreground">暂无候选站点。</p>
+        ) : (
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            {candidates.map((item) => (
+              <Card key={item.candidateId || item.url || item.domain}>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium">{item.title || item.domain || item.url}</span>
+                    {item.url && (
+                      <span className="text-xs text-muted-foreground break-all">
+                        {item.url}
+                      </span>
+                    )}
+                  </div>
+                  {item.snippet && (
+                    <p className="text-sm text-muted-foreground">{item.snippet}</p>
+                  )}
+                  {item.createdAt && (
+                    <p className="text-xs text-muted-foreground">
+                      发现时间：{new Date(item.createdAt).toLocaleString("zh-CN")}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-col gap-2 pt-2">
+          <Button onClick={onEdit} disabled={!group}>
+            打开编辑并导入
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            在“自定义网站配置”中使用「导入候选」按钮，可自动推断并添加选中的站点。
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

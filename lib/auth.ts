@@ -17,6 +17,11 @@ export interface User {
  */
 export async function getCurrentUser(): Promise<User | null> {
   try {
+    if (!prisma) {
+      console.error('Prisma client is not initialized')
+      return null
+    }
+
     const cookieStore = await cookies()
     const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value
 
@@ -53,6 +58,10 @@ export async function getCurrentUser(): Promise<User | null> {
  * 创建会话
  */
 export async function createSession(userId: string): Promise<string> {
+  if (!prisma) {
+    throw new Error('Prisma client is not initialized')
+  }
+
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
 
@@ -71,6 +80,11 @@ export async function createSession(userId: string): Promise<string> {
  * 删除会话
  */
 export async function deleteSession(token: string): Promise<void> {
+  if (!prisma) {
+    console.error('Prisma client is not initialized')
+    return
+  }
+
   await prisma.session.deleteMany({
     where: { token },
   })
@@ -80,6 +94,11 @@ export async function deleteSession(token: string): Promise<void> {
  * 清理过期会话
  */
 export async function cleanupExpiredSessions(): Promise<void> {
+  if (!prisma) {
+    console.error('Prisma client is not initialized')
+    return
+  }
+
   await prisma.session.deleteMany({
     where: {
       expiresAt: {

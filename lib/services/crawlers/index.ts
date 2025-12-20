@@ -14,6 +14,7 @@ import { NeteaseCrawler } from './netease'
 import { SinaCrawler } from './sina'
 import { QQCrawler } from './qq'
 import { RedbookCrawler } from './redbook'
+import { WebSearchCrawler } from './web-search'
 
 // 平台爬虫映射表
 const crawlers: Map<string, () => PlatformCrawler> = new Map([
@@ -27,6 +28,7 @@ const crawlers: Map<string, () => PlatformCrawler> = new Map([
   ['sina', () => new SinaCrawler()],
   ['qq', () => new QQCrawler()],
   ['redbook', () => new RedbookCrawler()],
+  ['web-search', () => new WebSearchCrawler()], // 全网搜索爬虫
   // 其他平台的爬虫可以在这里添加
 ])
 

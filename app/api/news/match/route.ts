@@ -17,6 +17,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const { all, dateFrom, dateTo } = body
 
+    // 业务逻辑验证：检查是否有启用的关键词组
+    const enabledGroups = await prisma.keywordGroup.findMany({
+      where: { enabled: true },
+    })
+
+    if (enabledGroups.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'NO_KEYWORD_GROUPS',
+            message: '没有启用的关键词组，请先配置关键词组',
+          },
+        },
+        { status: 400 }
+      )
+    }
+
     const matcher = new MatcherService(prisma)
     const calculator = new CalculatorService()
 

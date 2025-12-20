@@ -11,5 +11,7 @@ export interface KeywordGroup {
   excludedWords: string[]
   priority: number
   enabled: boolean
+  customWebsites?: any // JSON类型，存储自定义网站配置
+  discoveredWebsites?: any // JSON类型，存储候选站点
 }
 

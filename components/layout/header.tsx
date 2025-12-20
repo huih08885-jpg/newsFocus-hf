@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, Bell, User, LogOut } from "lucide-react"
+import { Bell, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
+import { SearchBox } from "@/components/search/search-box"
 
 interface User {
   id: string
@@ -32,11 +33,13 @@ export function Header() {
 
   useEffect(() => {
     loadUser()
-  }, [])
+  }, [pathname]) // 当路径变化时重新加载用户信息
 
   const loadUser = async () => {
     try {
-      const res = await fetch("/api/auth/me")
+      const res = await fetch("/api/auth/me", {
+        credentials: "include", // 确保发送Cookie
+      })
       const data = await res.json()
       if (data.success) {
         setUser(data.data.user)
@@ -52,6 +55,7 @@ export function Header() {
     try {
       const res = await fetch("/api/auth/logout", {
         method: "POST",
+        credentials: "include", // 确保发送Cookie
       })
       const data = await res.json()
 
@@ -76,13 +80,14 @@ export function Header() {
   const isPublicRoute = pathname === "/platforms" || pathname === "/login" || pathname === "/register"
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-6">
           <Link href={user ? "/" : "/platforms"} className="flex items-center gap-2">
             <span className="text-xl font-bold">NewsFocus</span>
           </Link>
-          {user && (
+          {/* 已隐藏的导航链接 */}
+          {/* {user && (
             <nav className="hidden md:flex items-center gap-6">
               <Link href="/" className="text-sm font-medium hover:text-primary">
                 仪表板
@@ -93,24 +98,18 @@ export function Header() {
               <Link href="/analytics" className="text-sm font-medium hover:text-primary">
                 数据分析
               </Link>
-              <Link href="/history" className="text-sm font-medium hover:text-primary">
-                历史查询
-              </Link>
             </nav>
-          )}
+          )} */}
         </div>
         <div className="flex items-center gap-4">
           {user && (
             <>
               <div className="hidden md:flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="search"
-                    placeholder="搜索新闻..."
-                    className="h-9 w-[200px] rounded-md border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
+                <SearchBox
+                  className="w-[300px]"
+                  placeholder="搜索新闻..."
+                  showSuggestions={true}
+                />
               </div>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />

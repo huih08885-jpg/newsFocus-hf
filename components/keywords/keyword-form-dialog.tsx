@@ -16,11 +16,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import type { KeywordGroup } from "@/lib/types"
+import { CustomWebsitesConfig, type CustomWebsite } from "./custom-websites-config"
 
 // 表单用的 KeywordGroup（id 可选，name 转换为 string）
-interface KeywordGroupForm extends Omit<KeywordGroup, 'id' | 'name'> {
+interface KeywordGroupForm extends Omit<KeywordGroup, 'id' | 'name' | 'customWebsites'> {
   id?: string
   name?: string
+  customWebsites?: CustomWebsite[]
 }
 
 interface KeywordFormDialogProps {
@@ -45,10 +47,21 @@ export function KeywordFormDialog({
     excludedWords: [],
     priority: 0,
     enabled: true,
+    customWebsites: [],
   })
 
   useEffect(() => {
     if (keywordGroup) {
+      // 解析 customWebsites
+      let customWebsites: CustomWebsite[] = []
+      if (keywordGroup.customWebsites) {
+        if (Array.isArray(keywordGroup.customWebsites)) {
+          customWebsites = keywordGroup.customWebsites as CustomWebsite[]
+        } else if (typeof keywordGroup.customWebsites === 'object') {
+          customWebsites = [keywordGroup.customWebsites as CustomWebsite]
+        }
+      }
+
       setFormData({
         id: keywordGroup.id,
         name: keywordGroup.name ?? "",
@@ -57,6 +70,7 @@ export function KeywordFormDialog({
         excludedWords: keywordGroup.excludedWords,
         priority: keywordGroup.priority,
         enabled: keywordGroup.enabled,
+        customWebsites,
       })
     } else {
       setFormData({
@@ -66,6 +80,7 @@ export function KeywordFormDialog({
         excludedWords: [],
         priority: 0,
         enabled: true,
+        customWebsites: [],
       })
     }
   }, [keywordGroup, open])
@@ -75,6 +90,35 @@ export function KeywordFormDialog({
     setLoading(true)
 
     try {
+      // 验证自定义网站配置
+      if (formData.customWebsites && formData.customWebsites.length > 0) {
+        for (const website of formData.customWebsites) {
+          if (!website.name || website.name.trim().length === 0) {
+            throw new Error("自定义网站名称不能为空")
+          }
+          if (!website.config.list.url || website.config.list.url.trim().length === 0) {
+            throw new Error(`网站 "${website.name}" 的列表页URL不能为空`)
+          }
+          if (!website.config.list.itemSelector || website.config.list.itemSelector.trim().length === 0) {
+            throw new Error(`网站 "${website.name}" 的列表项选择器不能为空`)
+          }
+          if (!website.config.list.fields.title.selector || website.config.list.fields.title.selector.trim().length === 0) {
+            throw new Error(`网站 "${website.name}" 的标题选择器不能为空`)
+          }
+          if (website.config.search) {
+            if (!website.config.search.url || website.config.search.url.trim().length === 0) {
+              throw new Error(`网站 "${website.name}" 的搜索页URL不能为空`)
+            }
+            if (!website.config.search.itemSelector || website.config.search.itemSelector.trim().length === 0) {
+              throw new Error(`网站 "${website.name}" 的搜索页列表项选择器不能为空`)
+            }
+            if (!website.config.search.fields.title.selector || website.config.search.fields.title.selector.trim().length === 0) {
+              throw new Error(`网站 "${website.name}" 的搜索页标题选择器不能为空`)
+            }
+          }
+        }
+      }
+
       const url = keywordGroup?.id
         ? `/api/config/keywords/${keywordGroup.id}`
         : "/api/config/keywords"
@@ -92,6 +136,9 @@ export function KeywordFormDialog({
           excludedWords: formData.excludedWords.filter(Boolean),
           priority: formData.priority,
           enabled: formData.enabled,
+          customWebsites: formData.customWebsites && formData.customWebsites.length > 0
+            ? formData.customWebsites
+            : null,
         }),
       })
 
@@ -121,7 +168,12 @@ export function KeywordFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => {
+          e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {keywordGroup?.id ? "编辑关键词组" : "添加关键词组"}
@@ -228,6 +280,24 @@ export function KeywordFormDialog({
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* 自定义网站配置 */}
+          <div className="border-t pt-4">
+            <CustomWebsitesConfig
+              websites={formData.customWebsites || []}
+              discoveredWebsites={keywordGroup?.discoveredWebsites as any}
+              onChange={(websitesOrUpdater) => {
+                if (typeof websitesOrUpdater === 'function') {
+                  setFormData((prev) => ({
+                    ...prev,
+                    customWebsites: websitesOrUpdater(prev.customWebsites || []),
+                  }))
+                } else {
+                  setFormData({ ...formData, customWebsites: websitesOrUpdater })
+                }
+              }}
+            />
           </div>
 
           <DialogFooter>
