@@ -282,7 +282,7 @@ export class CrawlerService {
         platformId: ws.platformId,
         name: ws.name,
         crawlerType: 'configurable-html' as const,
-        crawlerConfig: ws.config as Prisma.JsonValue,
+        crawlerConfig: ws.config as unknown as Prisma.JsonValue,
         _isCustom: true,
         _keywordGroupId: ws.keywordGroupId,
         _keywords: ws.keywords,
