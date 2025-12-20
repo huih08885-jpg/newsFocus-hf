@@ -245,9 +245,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'PredictionsAPI', {
-      endpoint: '/api/lottery/predictions'
-    })
+    return handleError(error, 'PredictionsAPI', '获取预测历史失败')
   }
 }
 

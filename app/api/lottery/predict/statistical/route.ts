@@ -160,9 +160,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'StatisticalPredictAPI', {
-      endpoint: '/api/lottery/predict/statistical'
-    })
+    return handleError(error, 'StatisticalPredictAPI', '统计分析预测失败')
   }
 }
 

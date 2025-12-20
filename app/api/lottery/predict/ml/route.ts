@@ -145,9 +145,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'MLPredictAPI', {
-      endpoint: '/api/lottery/predict/ml'
-    })
+    return handleError(error, 'MLPredictAPI', '机器学习预测失败')
   }
 }
 

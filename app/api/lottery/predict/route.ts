@@ -123,9 +123,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryPredictAPI', {
-      endpoint: '/api/lottery/predict'
-    })
+    return handleError(error, 'LotteryPredictAPI', '生成综合预测失败')
   }
 }
 
@@ -147,9 +145,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryPredictAPI', {
-      endpoint: '/api/lottery/predict'
-    })
+    return handleError(error, 'LotteryPredictAPI', '获取预测历史失败')
   }
 }
 

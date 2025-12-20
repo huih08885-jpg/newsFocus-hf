@@ -183,9 +183,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'AIPredictAPI', {
-      endpoint: '/api/lottery/predict/ai'
-    })
+    return handleError(error, 'AIPredictAPI', 'AI分析预测失败')
   }
 }
 

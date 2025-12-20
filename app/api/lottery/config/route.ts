@@ -85,9 +85,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryConfigAPI', {
-      endpoint: '/api/lottery/config'
-    })
+    return handleError(error, 'LotteryConfigAPI', '获取用户配置失败')
   }
 }
 
@@ -165,9 +163,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryConfigAPI', {
-      endpoint: '/api/lottery/config'
-    })
+    return handleError(error, 'LotteryConfigAPI', '保存用户配置失败')
   }
 }
 

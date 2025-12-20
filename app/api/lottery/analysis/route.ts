@@ -111,9 +111,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryAnalysisAPI', {
-      endpoint: '/api/lottery/analysis'
-    })
+    return handleError(error, 'LotteryAnalysisAPI', '执行彩票分析失败')
   }
 }
 
@@ -178,9 +176,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryAnalysisAPI', {
-      endpoint: '/api/lottery/analysis'
-    })
+    return handleError(error, 'LotteryAnalysisAPI', '获取分析历史失败')
   }
 }
 

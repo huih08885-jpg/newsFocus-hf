@@ -253,9 +253,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'ImportLottery', {
-      endpoint: '/api/lottery/import'
-    })
+    return handleError(error, 'ImportLottery', '导入历史开奖结果失败')
   }
 }
 

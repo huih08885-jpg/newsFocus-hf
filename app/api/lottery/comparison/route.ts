@@ -147,9 +147,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryComparisonAPI', {
-      endpoint: '/api/lottery/comparison'
-    })
+    return handleError(error, 'LotteryComparisonAPI', '创建预测对比失败')
   }
 }
 
@@ -232,9 +230,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    return handleError(error, 'LotteryComparisonAPI', {
-      endpoint: '/api/lottery/comparison'
-    })
+    return handleError(error, 'LotteryComparisonAPI', '获取对比历史失败')
   }
 }
 
