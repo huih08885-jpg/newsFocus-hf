@@ -1,5 +1,5 @@
 import { HTMLParser } from '@/lib/utils/html-parser'
-import type { Cheerio, CheerioAPI, AnyNode } from 'cheerio'
+import type { Cheerio, CheerioAPI } from 'cheerio'
 
 const DEFAULT_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -89,7 +89,7 @@ export class ArticleContentExtractor {
     return null
   }
 
-  private extractStructuredText($container: Cheerio<AnyNode>, $: CheerioAPI): string | null {
+  private extractStructuredText($container: Cheerio<any>, $: CheerioAPI): string | null {
     const blocks = $container
       .find('p, li, h1, h2, h3, h4, blockquote')
       .toArray()
