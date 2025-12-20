@@ -558,7 +558,7 @@ export class InterestSiteCrawlerService {
       
       // ConfigurableHtmlCrawler 需要 platformId 和 config
       console.log(`[InterestSiteCrawler] Step 5: Creating crawler instance...`)
-      const crawler = new ConfigurableHtmlCrawler(site.domain, config as ConfigurableHtmlCrawlerConfig)
+      const crawler = new ConfigurableHtmlCrawler(site.domain, config as unknown as ConfigurableHtmlCrawlerConfig)
 
       // 执行爬虫
       console.log(`[InterestSiteCrawler] Step 6: Starting crawl...`)

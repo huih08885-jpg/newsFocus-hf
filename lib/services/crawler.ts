@@ -669,7 +669,7 @@ export class CrawlerService {
       if (isHtmlConfig(effectiveConfig)) {
         return new ConfigurableHtmlCrawler(
           platform.platformId,
-          effectiveConfig as ConfigurableHtmlCrawlerConfig
+          effectiveConfig as unknown as ConfigurableHtmlCrawlerConfig
         )
       }
       console.warn(`[${platform.platformId}] 缺少 HTML 爬虫配置，无法实例化`)
@@ -679,7 +679,7 @@ export class CrawlerService {
     if (isHtmlConfig(effectiveConfig)) {
       return new ConfigurableHtmlCrawler(
         platform.platformId,
-        effectiveConfig as ConfigurableHtmlCrawlerConfig
+        effectiveConfig as unknown as ConfigurableHtmlCrawlerConfig
       )
     }
 
