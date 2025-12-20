@@ -258,7 +258,7 @@ export class CrawlerService {
               'config' in website &&
               website.enabled === true
             ) {
-              const websiteConfig = website.config as ConfigurableHtmlCrawlerConfig
+              const websiteConfig = website.config as unknown as ConfigurableHtmlCrawlerConfig
               if (websiteConfig && websiteConfig.type === 'html') {
                 customWebsites.push({
                   id: String(website.id),
