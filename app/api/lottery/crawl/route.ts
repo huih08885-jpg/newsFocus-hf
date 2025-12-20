@@ -171,9 +171,11 @@ export async function POST(request: NextRequest) {
 
     // 如果使用 Puppeteer，数据已经在爬取时保存了，不需要再次保存
     // 如果使用普通爬虫，需要保存数据
-    let savedCount = result.saved || result.total || 0 // 新保存的数量
-    let existingCount = result.existing || 0 // 已存在的数量
-    let skippedCount = result.skipped || 0 // 跳过（无效）的数量
+    // 类型守卫：检查 result 是否有 saved 属性（Puppeteer 爬虫）
+    const isPuppeteerResult = 'saved' in result || 'existing' in result || 'skipped' in result
+    let savedCount = isPuppeteerResult ? (result as any).saved || (result as any).total || 0 : 0 // 新保存的数量
+    let existingCount = isPuppeteerResult ? (result as any).existing || 0 : 0 // 已存在的数量
+    let skippedCount = isPuppeteerResult ? (result as any).skipped || 0 : 0 // 跳过（无效）的数量
 
     if (!usePuppeteer && result.data && result.data.length > 0) {
       // 普通爬虫需要保存数据

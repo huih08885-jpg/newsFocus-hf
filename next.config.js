@@ -5,17 +5,18 @@ const nextConfig = {
     domains: [],
   },
   // 将 cheerio 和 undici 标记为外部包，避免 webpack 处理
-  serverComponentsExternalPackages: ['cheerio', 'undici'],
+  // 注意：Next.js 14.0.4 不支持 serverComponentsExternalPackages，使用 webpack 配置替代
   webpack: (config, { isServer }) => {
-    // 在服务端构建时，将 undici 标记为外部依赖
+    // 在服务端构建时，将 cheerio 和 undici 标记为外部依赖
     if (isServer) {
       config.externals = config.externals || [];
       if (Array.isArray(config.externals)) {
-        config.externals.push('undici');
+        config.externals.push('cheerio', 'undici');
       } else if (typeof config.externals === 'object') {
+        config.externals.cheerio = 'commonjs cheerio';
         config.externals.undici = 'commonjs undici';
       } else {
-        config.externals = [config.externals, 'undici'];
+        config.externals = [config.externals, 'cheerio', 'undici'];
       }
     }
     

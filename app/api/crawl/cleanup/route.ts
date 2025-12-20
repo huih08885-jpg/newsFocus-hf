@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
-import { cleanupCrawlTasks } from '@/lib/services/crawl-task-manager'
+// import { prisma } from '@/lib/db/prisma'
+// import { cleanupCrawlTasks } from '@/lib/services/crawl-task-manager'
 
 /**
  * 清理卡住的爬取任务

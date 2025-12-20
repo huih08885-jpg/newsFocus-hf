@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
-import { CrawlerService } from '@/lib/services/crawler'
-import { MatcherService } from '@/lib/services/matcher'
-import { CalculatorService } from '@/lib/services/calculator'
-import { getCurrentUser } from '@/lib/auth'
-import { cleanupCrawlTasks } from '@/lib/services/crawl-task-manager'
+// import { prisma } from '@/lib/db/prisma'
+// import { CrawlerService } from '@/lib/services/crawler'
+// import { MatcherService } from '@/lib/services/matcher'
+// import { CalculatorService } from '@/lib/services/calculator'
+// import { getCurrentUser } from '@/lib/auth'
+// import { cleanupCrawlTasks } from '@/lib/services/crawl-task-manager'
 
 /**
  * ========== 已注释：爬虫管理模块相关API ==========

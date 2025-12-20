@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
-import { MatcherService } from '@/lib/services/matcher'
+// import { prisma } from '@/lib/db/prisma'
+// import { MatcherService } from '@/lib/services/matcher'
 
 /**
  * 诊断关键词匹配问题
