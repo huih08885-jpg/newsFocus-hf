@@ -45,7 +45,7 @@ export async function POST(
         { status: 400 }
       )
     }
-    return handleError(error, '记录分享失败')
+    return handleError(error, 'ShareAPI', '记录分享失败')
   }
 }
 

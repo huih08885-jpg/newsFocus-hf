@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error searching:', error)
-    return handleError(error, '搜索失败')
+    return handleError(error, 'SearchAPI', '搜索失败')
   }
 }
 

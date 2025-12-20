@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error getting suggestions:', error)
-    return handleError(error, '获取搜索建议失败')
+    return handleError(error, 'SearchSuggestionsAPI', '获取搜索建议失败')
   }
 }
 

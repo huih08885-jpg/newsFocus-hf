@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error getting tags:', error)
-    return handleError(error, '获取标签失败')
+    return handleError(error, 'CollectionsAPI', '获取标签失败')
   }
 }
 
