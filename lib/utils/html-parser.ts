@@ -130,14 +130,14 @@ export class HTMLParser {
    * @param selectors 备选选择器数组
    */
   static extractTextWithFallback(
-    $el: cheerio.CheerioAPI | cheerio.Cheerio<cheerio.Element>,
+    $el: cheerio.CheerioAPI | cheerio.Cheerio<any>,
     selectors: string[]
   ): string {
     for (const selector of selectors) {
       let text = ''
       // 尝试作为元素查找
       if ('find' in $el && typeof ($el as any).find === 'function') {
-        text = ($el as cheerio.Cheerio<cheerio.Element>).find(selector).first().text().trim()
+        text = ($el as cheerio.Cheerio<any>).find(selector).first().text().trim()
       } else {
         // 作为API使用
         text = ($el as cheerio.CheerioAPI)(selector).first().text().trim()
