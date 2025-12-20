@@ -1,7 +1,8 @@
 import { HTMLParser } from '@/lib/utils/html-parser'
 import { fetchHTML } from '@/lib/utils/fetch-helper'
 import type { ConfigurableHtmlCrawlerConfig } from '@/lib/services/crawlers/configurable-html'
-import type { Cheerio, CheerioAPI, Element as CheerioElement } from 'cheerio'
+import type { Cheerio, CheerioAPI } from 'cheerio'
+import type { Element as CheerioElement } from 'domhandler'
 
 const LIST_SELECTOR_CANDIDATES = [
   'article',
@@ -166,7 +167,7 @@ export class ConfigInferenceService {
     return null
   }
 
-  private detectDateField(items: Array<{ element: cheerio.Cheerio }>) {
+  private detectDateField(items: Array<{ element: Cheerio<CheerioElement> }>) {
     for (const candidate of DATE_SELECTOR_CANDIDATES) {
       let hits = 0
       for (const item of items) {
