@@ -123,7 +123,9 @@ export class AISearchService {
   ): {
     items: Array<{
       index: number
+      title: string
       url: string
+      source: string
       snippet?: string | null
       publishedAt?: string | null
     }>
@@ -137,7 +139,9 @@ export class AISearchService {
     return {
       items: results.map((item, index) => ({
         index: index + 1,
+        title: item.title || item.url || '无标题',
         url: item.url,
+        source: item.source || '未知来源',
         snippet: item.snippet,
         publishedAt: item.publishedAt,
       })),
