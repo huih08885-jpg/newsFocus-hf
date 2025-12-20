@@ -27,14 +27,14 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const type = searchParams.get('type') as 'personal' | 'trend' | 'business' | undefined
-    const status = searchParams.get('status')
+    const status = searchParams.get('status') || undefined
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
 
     const analysisService = new AIAnalysisService(prisma)
     const result = await analysisService.getUserAnalyses(user.id, {
       type,
-      status,
+      status: status as 'pending' | 'running' | 'completed' | 'failed' | undefined,
       page,
       pageSize,
     })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SearchService } from '@/lib/services/search'
-import { handleError } from '@/lib/utils/errors'
+import { handleError } from '@/lib/utils/error-handler'
 
 export const dynamic = 'force-dynamic'
 

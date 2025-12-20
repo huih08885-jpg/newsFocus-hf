@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/db/prisma'
-import { handleError } from '@/lib/utils/errors'
+import { handleError } from '@/lib/utils/error-handler'
 
 export const dynamic = 'force-dynamic'
 

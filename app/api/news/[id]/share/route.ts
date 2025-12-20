@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
 import { ShareService, SharePlatform } from '@/lib/services/share'
-import { handleError } from '@/lib/utils/errors'
+import { handleError } from '@/lib/utils/error-handler'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
