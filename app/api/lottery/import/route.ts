@@ -225,9 +225,10 @@ export async function POST(request: NextRequest) {
 
       } catch (error) {
         errorCount++
-        const errorMsg = error instanceof Error ? error.message : '未知错误'
+        const errorObj = error instanceof Error ? error : new Error(String(error))
+        const errorMsg = errorObj.message || '未知错误'
         errors.push(`第 ${i + 1} 行：${errorMsg}`)
-        logger.error(`导入第 ${i + 1} 行数据失败`, error, 'ImportLottery', {
+        logger.error(`导入第 ${i + 1} 行数据失败`, errorObj, 'ImportLottery', {
           row: i + 1,
           data: row
         })
