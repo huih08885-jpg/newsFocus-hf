@@ -326,13 +326,13 @@ export class CrawlerService {
       if (isCustom && customKeywords.length > 0) {
         keywords = customKeywords
         useSearchMode = true
-        console.log(`[${platform.platformId}] 自定义网站使用关键词组关键词: ${keywords.join(', ')}`)
+        console.log(`[${platform.platformId}] 自定义网站使用关键词组关键词: ${keywords?.join(', ') ?? ''}`)
       }
       // 优先使用自定义关键词
       else if (customKeywords && customKeywords.length > 0) {
         keywords = customKeywords
         useSearchMode = true
-        console.log(`[${platform.platformId}] 使用自定义关键词搜索模式，关键词: ${keywords.join(', ')}`)
+        console.log(`[${platform.platformId}] 使用自定义关键词搜索模式，关键词: ${keywords?.join(', ') ?? ''}`)
       } else if (keywordGroups && keywordGroups.length > 0) {
         // 否则使用关键词组的关键词
         keywords = []
@@ -342,7 +342,7 @@ export class CrawlerService {
         // 去重
         keywords = [...new Set(keywords)]
         useSearchMode = keywords.length > 0
-        console.log(`[${platform.platformId}] 使用关键词组搜索模式，关键词: ${keywords.join(', ')}`)
+        console.log(`[${platform.platformId}] 使用关键词组搜索模式，关键词: ${keywords?.join(', ') ?? ''}`)
       }
 
       const effectiveConfig = mergeJsonConfig(
