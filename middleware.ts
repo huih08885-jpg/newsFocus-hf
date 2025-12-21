@@ -2,14 +2,19 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // 公开路由（无需登录）
-const publicRoutes = ['/login', '/register', '/platforms']
+const publicRoutes = [
+  '/login', 
+  '/register', 
+  '/lottery',  // 福利彩票相关路由全部公开
+  '/privacy',  // 隐私政策页面
+]
 
-// 需要登录的路由
+// 需要登录的路由（新闻聚焦相关功能已禁用，保留用于兼容）
 const protectedRoutes = [
-  '/',
-  '/news',
-  '/analytics',
-  '/settings',
+  // '/',  // 已重定向到 /lottery
+  // '/news',  // 新闻聚焦功能已禁用
+  // '/analytics',  // 新闻聚焦功能已禁用
+  // '/settings',  // 新闻聚焦功能已禁用
 ]
 
 export function middleware(request: NextRequest) {
@@ -48,12 +53,13 @@ export function middleware(request: NextRequest) {
     const publicApiRoutes = [
       '/api/auth/login',
       '/api/auth/register',
+      '/api/lottery',  // 福利彩票相关API全部公开
       '/api/news/platforms',
       '/api/news/platforms/public',
     ]
     const isPublicApi = publicApiRoutes.some(route => pathname.startsWith(route))
     
-    // 如果不是公开 API，需要登录
+    // 如果不是公开 API，需要登录（但新闻聚焦功能已禁用，大部分API会返回503）
     if (!isPublicApi) {
       const sessionToken = request.cookies.get('newsfocus_session')
       if (!sessionToken) {
