@@ -17,7 +17,7 @@ import { RedbookCrawler } from './redbook'
 import { WebSearchCrawler } from './web-search'
 
 // 平台爬虫映射表
-const crawlers: Map<string, () => PlatformCrawler> = new Map([
+const crawlerEntries: Array<[string, () => PlatformCrawler]> = [
   ['zhihu', () => new ZhihuCrawler()],
   ['weibo', () => new WeiboCrawler()],
   ['baidu', () => new BaiduCrawler()],
@@ -30,7 +30,8 @@ const crawlers: Map<string, () => PlatformCrawler> = new Map([
   ['redbook', () => new RedbookCrawler()],
   ['web-search', () => new WebSearchCrawler()], // 全网搜索爬虫
   // 其他平台的爬虫可以在这里添加
-])
+]
+const crawlers: Map<string, () => PlatformCrawler> = new Map(crawlerEntries)
 
 /**
  * 获取指定平台的爬虫实例
