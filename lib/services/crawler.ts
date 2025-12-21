@@ -462,12 +462,7 @@ export class CrawlerService {
    */
   private async saveNewsItems(
     platformId: string,
-    items: Array<{
-      title: string
-      url?: string
-      mobileUrl?: string
-      rank: number
-    }>,
+    items: NewsItem[],
     keywordGroupIds?: string[],
     platformName?: string,
     crawlerType?: string,
