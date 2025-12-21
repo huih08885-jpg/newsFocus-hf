@@ -1,5 +1,13 @@
 "use client"
 
+// ========== 新闻聚焦功能已禁用，仅保留福利彩票功能 ==========
+import { DisabledModule } from "@/components/disabled-module"
+
+export default function PlatformsPage() {
+  return <DisabledModule moduleName="平台管理" />
+}
+
+/* ========== 原始代码已注释 ==========
 import { useState, useEffect } from "react"
 import { PlatformNewsCard } from "@/components/news/platform-news-card"
 import { Button } from "@/components/ui/button"
@@ -226,4 +234,4 @@ export default function PlatformsPage() {
     </div>
   )
 }
-
+========== 原始代码结束 ========== */
