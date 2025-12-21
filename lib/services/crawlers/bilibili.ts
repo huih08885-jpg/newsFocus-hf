@@ -169,7 +169,7 @@ export class BilibiliCrawler implements PlatformCrawler {
           
           // 解析数据路径
           const pathParts = endpoint.dataPath.split('.')
-          let listData: any[] = data
+          let listData: any = data
           for (const part of pathParts) {
             listData = listData?.[part]
           }
