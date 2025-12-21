@@ -2,21 +2,7 @@
   "buildCommand": "prisma generate && next build",
   "framework": "nextjs",
   "installCommand": "npm ci",
-  "crons": [
-    // 新闻聚焦相关的定时任务已注释，仅保留福利彩票功能
-    // {
-    //   "path": "/api/cron/cleanup",
-    //   "schedule": "0 2 * * *"
-    // },
-    // {
-    //   "path": "/api/cron/demand-radar",
-    //   "schedule": "0 9 * * *"
-    // },
-    // {
-    //   "path": "/api/cron/cleanup-logs",
-    //   "schedule": "0 3 * * *"
-    // }
-  ],
+  "crons": [],
   "env": {
     "PRISMA_GENERATE_DATAPROXY": "false"
   }
