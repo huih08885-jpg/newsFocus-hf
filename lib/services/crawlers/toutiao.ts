@@ -231,12 +231,6 @@ export class ToutiaoCrawler implements PlatformCrawler {
       const errorMsg = '所有API端点都失败或返回空数据。可能原因：1) API需要认证 2) 反爬虫机制 3) 数据结构已变更'
       console.error(`[Toutiao] ${errorMsg}`)
       throw new Error(errorMsg)
-
-      return {
-        success: true,
-        platformId: this.platformId,
-        data: items,
-      }
     } catch (error) {
       let errorMessage = '未知错误'
       if (error instanceof Error) {
