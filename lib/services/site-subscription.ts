@@ -26,7 +26,7 @@ export class SiteSubscriptionService {
           domain,
           status: 'new',
           keywordGroupId: input.keywordGroupId,
-          configJson: input.configDraft ?? null,
+          ...(input.configDraft && { configJson: input.configDraft as Prisma.InputJsonValue }),
           statsJson: {
             title: input.title,
             url: input.url,
@@ -58,7 +58,7 @@ export class SiteSubscriptionService {
           await tx.keywordGroup.update({
             where: { id: input.keywordGroupId },
             data: {
-              discoveredWebsites: normalized as Prisma.JsonValue,
+              discoveredWebsites: normalized as Prisma.InputJsonValue,
             },
           })
         }

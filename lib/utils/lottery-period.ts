@@ -63,11 +63,11 @@ export function calculatePrizeLevel(
   const redMatches = predictedRedBalls.filter(ball => 
     actualRedBalls.includes(ball)
   )
-  const redCount = redMatches.length
+  const redCount: number = redMatches.length
 
   // 计算蓝球匹配
   const blueMatch = predictedBlueBall === actualBlueBall
-  const blueCount = blueMatch ? 1 : 0
+  const blueCount: number = blueMatch ? 1 : 0
 
   // 判断中奖等级
   let prizeLevel = '0'
@@ -88,7 +88,8 @@ export function calculatePrizeLevel(
   } else if ((redCount === 4 && blueCount === 0) || (redCount === 3 && blueCount === 1)) {
     prizeLevel = '5'
     prizeName = '五等奖'
-  } else if (blueCount === 1 || (redCount === 2 && blueCount === 1) || (redCount === 1 && blueCount === 1) || (redCount === 0 && blueCount === 1)) {
+  } else if (blueCount === 1) {
+    // 六等奖：蓝球匹配即可（红球匹配0-2个）
     prizeLevel = '6'
     prizeName = '六等奖'
   }

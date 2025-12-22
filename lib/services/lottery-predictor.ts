@@ -78,7 +78,8 @@ export class LotteryPredictor {
     logger.info('执行AI分析和机器学习预测', 'LotteryPredictor')
     const [aiResult, mlResult] = await Promise.allSettled([
       this.aiPredictor.analyzeWithLLM(reversedHistory, statisticalAnalysis).catch(err => {
-        logger.warn('AI预测失败，将仅使用统计分析和机器学习', err instanceof Error ? err : new Error(String(err)), 'LotteryPredictor')
+        const error = err instanceof Error ? err : new Error(String(err))
+        logger.warn('AI预测失败，将仅使用统计分析和机器学习', 'LotteryPredictor', { error: error.message })
         return null
       }),
       this.mlPredictor.predict(statisticalAnalysis)
@@ -184,7 +185,11 @@ export class LotteryPredictor {
     // 6. 确保有5组（如果不足，补充）
     while (top5.length < 5) {
       const supplementary = this.generateSupplementaryPrediction(statistical, top5)
-      top5.push(supplementary)
+      // 添加 score 属性以匹配类型
+      top5.push({
+        ...supplementary,
+        score: 0.5 // 补充预测使用较低的分数
+      })
     }
 
     return top5.map(p => ({

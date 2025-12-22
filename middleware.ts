@@ -10,7 +10,7 @@ const publicRoutes = [
 ]
 
 // 需要登录的路由（新闻聚焦相关功能已禁用，保留用于兼容）
-const protectedRoutes = [
+const protectedRoutes: string[] = [
   // '/',  // 已重定向到 /lottery
   // '/news',  // 新闻聚焦功能已禁用
   // '/analytics',  // 新闻聚焦功能已禁用

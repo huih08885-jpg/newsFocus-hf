@@ -145,7 +145,18 @@ export async function fetchHTML(url: string, options: FetchOptions = {}): Promis
   // 检查 robots.txt（如果启用）
   const checkRobots = options.checkRobots !== false // 默认检查
   if (checkRobots) {
-    const userAgent = options.headers?.['User-Agent'] as string || DEFAULT_HEADERS['User-Agent']
+    // 安全地获取 User-Agent
+    let userAgent = DEFAULT_HEADERS['User-Agent']
+    if (options.headers) {
+      if (Array.isArray(options.headers)) {
+        const uaHeader = options.headers.find(([key]) => key.toLowerCase() === 'user-agent')
+        if (uaHeader) userAgent = uaHeader[1] as string
+      } else if (options.headers instanceof Headers) {
+        userAgent = options.headers.get('User-Agent') || userAgent
+      } else {
+        userAgent = (options.headers['User-Agent'] as string) || userAgent
+      }
+    }
     const robotsResult = await checkRobotsTxtCached(url, userAgent)
     
     if (!robotsResult.allowed) {
