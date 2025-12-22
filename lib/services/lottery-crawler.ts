@@ -37,6 +37,9 @@ export class LotteryCrawler {
       // 使用 fetch-helper 获取更真实的浏览器行为
       const { fetchHTML } = await import('@/lib/utils/fetch-helper')
       
+      // 检测是否在Vercel环境，如果是则启用代理回退
+      const isVercel = process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL
+      
       try {
         const html = await fetchHTML('https://www.cwl.gov.cn/', {
           referer: 'https://www.cwl.gov.cn/',
@@ -45,6 +48,7 @@ export class LotteryCrawler {
           retries: 2,
           retryDelay: 2000,
           checkRobots: false,
+          proxyFallback: isVercel, // 在Vercel环境启用代理回退
         })
         
         logger.debug('初始化成功，已获取 cookies', 'LotteryCrawler.Init')
@@ -291,6 +295,9 @@ export class LotteryCrawler {
         customHeaders['Cookie'] = this.cookies
       }
 
+      // 检测是否在Vercel环境，如果是则启用代理回退
+      const isVercel = process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL
+      
       // 使用增强的 fetch，带重试和代理回退
       let html: string
       try {
@@ -301,7 +308,7 @@ export class LotteryCrawler {
           checkRobots: false,
           referer: page === 1 ? 'https://www.cwl.gov.cn/' : this.baseUrl,
           origin: 'https://www.cwl.gov.cn',
-          proxyFallback: true, // 如果直接请求失败（如403），尝试使用代理
+          proxyFallback: isVercel || true, // 在Vercel环境或直接请求失败时，尝试使用代理
           headers: customHeaders,
         })
         logger.debug(`成功获取页面 ${page} HTML，长度: ${html.length}`, 'LotteryCrawler.Page', { page })

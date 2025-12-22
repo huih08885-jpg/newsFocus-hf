@@ -8,8 +8,8 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "福利彩票预测系统",
-  description: "中国福利彩票开奖结果查询、预测和分析系统",
+  title: "fcyc",
+  description: "fcyc",
 }
 
 export default function RootLayout({

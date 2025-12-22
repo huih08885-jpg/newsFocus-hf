@@ -6,7 +6,8 @@
 import { checkRobotsTxtCached } from './robots-checker'
 
 const DEFAULT_HEADERS = {
-  'User-Agent': 'newsFocus-hf/4.1.0 (+https://github.com/your-repo; contact@example.com) Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  // 使用真实浏览器User-Agent，移除项目标识（避免被识别为爬虫）
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
   'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
   'Accept-Encoding': 'gzip, deflate, br',
@@ -41,14 +42,37 @@ export interface FetchOptions extends RequestInit {
 }
 
 function buildProxyTargets(url: string): string[] {
-  // Jina AI 代理服务需要正确的 URL 编码
-  // 格式: https://r.jina.ai/{encoded_url}
+  // 使用代理服务管理器获取代理目标
   try {
-    const encodedUrl = encodeURIComponent(url)
-    return [`https://r.jina.ai/${encodedUrl}`]
+    // 动态导入代理服务管理器
+    // 注意：这里使用同步方式，因为 getProxyTargets 是同步函数
+    let getProxyTargets: (url: string) => string[]
+    try {
+      const proxyService = require('./proxy-service')
+      getProxyTargets = proxyService.getProxyTargets
+    } catch (importError) {
+      // 如果导入失败，使用Jina AI作为后备
+      const encodedUrl = encodeURIComponent(url)
+      return [`https://r.jina.ai/${encodedUrl}`]
+    }
+    
+    const targets = getProxyTargets(url)
+    
+    // 如果没有配置代理，尝试使用Jina AI作为后备（免费但可能不稳定）
+    if (targets.length === 0 && process.env.USE_JINA_PROXY !== 'false') {
+      const encodedUrl = encodeURIComponent(url)
+      return [`https://r.jina.ai/${encodedUrl}`]
+    }
+    
+    return targets
   } catch (error) {
-    // 如果编码失败，返回原始格式
-    return [`https://r.jina.ai/${url}`]
+    // 如果导入失败，使用Jina AI作为后备
+    try {
+      const encodedUrl = encodeURIComponent(url)
+      return [`https://r.jina.ai/${encodedUrl}`]
+    } catch (encodeError) {
+      return []
+    }
   }
 }
 

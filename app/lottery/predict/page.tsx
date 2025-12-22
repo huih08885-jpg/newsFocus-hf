@@ -344,7 +344,7 @@ export default function LotteryPredictPage() {
         {/* 第一行：标题和副标题 */}
         <div className="mb-4 flex items-center justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold inline-block mr-3">福利彩票综合预测</h1>
+            <h1 className="text-2xl font-bold inline-block mr-3">fcyc</h1>
             <span className="text-sm text-muted-foreground">
               综合统计分析、AI分析和机器学习三种方法，生成5组预测号码
             </span>

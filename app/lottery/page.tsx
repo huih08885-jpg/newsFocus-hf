@@ -224,9 +224,9 @@ export default function LotteryPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">福利彩票开奖结果</h1>
+          <h1 className="text-3xl font-bold">fcyc</h1>
           <p className="text-muted-foreground mt-2">
-            中国福利彩票往期开奖结果查询
+            fcyc
           </p>
         </div>
         <div className="flex gap-2">

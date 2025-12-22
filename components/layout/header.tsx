@@ -84,7 +84,7 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-6">
           <Link href="/lottery" className="flex items-center gap-2">
-            <span className="text-xl font-bold">福利彩票预测系统</span>
+            <span className="text-xl font-bold">fcyc</span>
           </Link>
           {/* 已隐藏的导航链接 */}
           {/* {user && (

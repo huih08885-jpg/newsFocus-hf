@@ -17,10 +17,10 @@ export function DisabledModule({ moduleName = "新闻聚焦" }: { moduleName?: s
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            {moduleName}模块已禁用，系统仅保留福利彩票功能。
+            {moduleName}模块已禁用，系统仅保留fcyc功能。
           </p>
           <Link href="/lottery">
-            <Button>前往福利彩票页面</Button>
+            <Button>前往fcyc页面</Button>
           </Link>
         </CardContent>
       </Card>
