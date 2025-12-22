@@ -135,12 +135,19 @@ export async function POST(request: NextRequest) {
     })
 
     if (!result.success) {
+      const errorMessage = result.error || '未知错误'
+      const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden')
+      
       logger.error('爬虫执行失败', 
-        result.error ? new Error(result.error) : new Error('未知错误'), 
+        new Error(errorMessage), 
         'LotteryAPI', 
         {
-          error: result.error,
-          result: JSON.stringify(result, null, 2)
+          error: errorMessage,
+          is403Error,
+          result: JSON.stringify(result, null, 2),
+          suggestion: is403Error 
+            ? '目标网站可能启用了反爬虫机制。建议：1) 检查网络连接 2) 稍后重试 3) 如果代理服务可用，会自动使用代理'
+            : undefined
         }
       )
       return NextResponse.json(

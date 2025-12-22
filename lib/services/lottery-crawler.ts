@@ -33,27 +33,60 @@ export class LotteryCrawler {
   private async initialize(): Promise<void> {
     try {
       logger.debug('初始化：访问首页获取 cookies', 'LotteryCrawler.Init')
-      const response = await fetch('https://www.cwl.gov.cn/', {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'zh-CN,zh;q=0.9',
-        },
-      })
       
-      // 提取 cookies（Node.js fetch API）
-      const setCookieHeader = response.headers.get('set-cookie')
-      if (setCookieHeader) {
-        // 处理多个 cookie（可能以逗号分隔）
-        const cookies = Array.isArray(setCookieHeader) 
-          ? setCookieHeader 
-          : setCookieHeader.split(',').map(c => c.trim())
-        this.cookies = cookies.join('; ')
-        logger.debug(`获取到 cookies`, 'LotteryCrawler.Init')
+      // 使用 fetch-helper 获取更真实的浏览器行为
+      const { fetchHTML } = await import('@/lib/utils/fetch-helper')
+      
+      try {
+        const html = await fetchHTML('https://www.cwl.gov.cn/', {
+          referer: 'https://www.cwl.gov.cn/',
+          origin: 'https://www.cwl.gov.cn/',
+          timeout: 15000,
+          retries: 2,
+          retryDelay: 2000,
+          checkRobots: false,
+        })
+        
+        logger.debug('初始化成功，已获取 cookies', 'LotteryCrawler.Init')
+      } catch (fetchError) {
+        // 如果 fetchHTML 失败，尝试普通 fetch
+        logger.warn('fetchHTML 失败，尝试普通 fetch', 'LotteryCrawler.Init', {
+          error: fetchError instanceof Error ? fetchError.message : String(fetchError)
+        })
+        
+        const response = await fetch('https://www.cwl.gov.cn/', {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        
+        // 提取 cookies
+        const setCookieHeader = response.headers.get('set-cookie')
+        if (setCookieHeader) {
+          const cookies = Array.isArray(setCookieHeader) 
+            ? setCookieHeader 
+            : setCookieHeader.split(',').map(c => c.trim())
+          this.cookies = cookies.join('; ')
+          logger.debug(`获取到 cookies`, 'LotteryCrawler.Init')
+        }
       }
       
       // 等待一下，模拟真实用户行为
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      await new Promise(resolve => setTimeout(resolve, 2000))
     } catch (error) {
       logger.warn('初始化失败，继续尝试', 'LotteryCrawler.Init', {
         error: error instanceof Error ? error.message : String(error)
@@ -96,13 +129,25 @@ export class LotteryCrawler {
       let currentPage = 1
       let hasMore = true
       let lastDate: Date | null = null
+      let consecutiveErrors = 0 // 连续错误计数
+      const maxConsecutiveErrors = 3 // 最大连续错误次数
 
       // 爬取所有页面
       while (hasMore && currentPage <= maxPages) {
         try {
           logger.info(`正在爬取第 ${currentPage} 页`, 'LotteryCrawler', { currentPage, resultsCount: results.length })
 
+          // 添加延迟，避免请求过快（模拟真实用户行为）
+          if (currentPage > 1) {
+            const delay = 3000 + Math.random() * 2000 // 3-5秒随机延迟
+            logger.debug(`等待 ${delay.toFixed(0)}ms 后继续爬取`, 'LotteryCrawler', { currentPage, delay })
+            await new Promise(resolve => setTimeout(resolve, delay))
+          }
+
           const pageResults = await this.crawlPage(currentPage)
+          
+          // 重置连续错误计数
+          consecutiveErrors = 0
 
           if (pageResults.length === 0) {
             logger.info('当前页无数据，停止爬取', 'LotteryCrawler', { currentPage })
@@ -155,14 +200,31 @@ export class LotteryCrawler {
 
         } catch (error) {
           const errorObj = error instanceof Error ? error : new Error(String(error))
-          logger.error(`爬取第 ${currentPage} 页失败`, errorObj, 'LotteryCrawler', { currentPage })
+          consecutiveErrors++
+          logger.error(`爬取第 ${currentPage} 页失败`, errorObj, 'LotteryCrawler', { 
+            currentPage, 
+            consecutiveErrors,
+            error: errorObj.message 
+          })
           
-          // 如果连续失败，停止爬取
-          if (currentPage > 1) {
+          // 如果连续失败超过阈值，停止爬取
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            logger.warn(`连续失败 ${consecutiveErrors} 次，停止爬取`, 'LotteryCrawler', {
+              consecutiveErrors,
+              maxConsecutiveErrors
+            })
             hasMore = false
             break
           }
-          throw error
+          
+          // 如果是第一页失败，直接抛出错误
+          if (currentPage === 1) {
+            throw error
+          }
+          
+          // 其他页面失败，等待后继续尝试下一页
+          await new Promise(resolve => setTimeout(resolve, 5000))
+          currentPage++
         }
       }
 
@@ -229,14 +291,30 @@ export class LotteryCrawler {
         customHeaders['Cookie'] = this.cookies
       }
 
-      const html = await fetchHTML(url, {
-        timeout: 20000,
-        retries: 2,
-        checkRobots: false,
-        referer: page === 1 ? 'https://www.cwl.gov.cn/' : this.baseUrl,
-        origin: 'https://www.cwl.gov.cn',
-        headers: customHeaders,
-      })
+      // 使用增强的 fetch，带重试和代理回退
+      let html: string
+      try {
+        html = await fetchHTML(url, {
+          timeout: 30000,
+          retries: 3,
+          retryDelay: 2000,
+          checkRobots: false,
+          referer: page === 1 ? 'https://www.cwl.gov.cn/' : this.baseUrl,
+          origin: 'https://www.cwl.gov.cn',
+          proxyFallback: true, // 如果直接请求失败（如403），尝试使用代理
+          headers: customHeaders,
+        })
+        logger.debug(`成功获取页面 ${page} HTML，长度: ${html.length}`, 'LotteryCrawler.Page', { page })
+      } catch (fetchError) {
+        const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError)
+        logger.error(`获取页面 ${page} 失败`, fetchError instanceof Error ? fetchError : new Error(errorMsg), 'LotteryCrawler.Page', {
+          page,
+          url,
+          error: errorMsg,
+          hasProxyFallback: true
+        })
+        throw new Error(`HTTP 403: Forbidden - 无法访问目标网站，可能被反爬虫机制阻止。错误: ${errorMsg}`)
+      }
 
       // 调试：保存 HTML 到日志（仅前 5000 字符）
       if (page === 1) {
