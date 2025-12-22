@@ -213,10 +213,7 @@ model UserCollection {
   id         String   @id @default(cuid())
   userId     String
   newsItemId String
-  tags       String[] @default([])
-  notes      String?
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
   newsItem   NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

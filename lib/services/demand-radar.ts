@@ -847,7 +847,7 @@ export class DemandRadarService {
   /**
    * 生成备注
    */
-  private generateNotes(demand: any, frequency: number, sourceCount: number): string {
+  private generateNotes(demand: any, frequency: number, sourceCount: number): string | undefined {
     const notes: string[] = []
 
     if (frequency > 30) {
@@ -864,7 +864,9 @@ export class DemandRadarService {
       notes.push('多平台讨论')
     }
 
-    return notes.join('，') || undefined
+    // 如果没有备注，返回 undefined（因为 Prisma schema 中 notes 字段是 String?）
+    const result = notes.join('，')
+    return result || undefined
   }
 
   /**
