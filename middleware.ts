@@ -1,32 +1,33 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// 公开路由（无需登录）
+// 公开路由（无需登录）- 只有登录和注册页
 const publicRoutes = [
   '/login', 
-  '/register', 
-  '/lottery',  // 福利彩票相关路由全部公开
-  '/privacy',  // 隐私政策页面
+  '/register',
 ]
 
-// 需要登录的路由（新闻聚焦相关功能已禁用，保留用于兼容）
-const protectedRoutes: string[] = [
-  // '/',  // 已重定向到 /lottery
-  // '/news',  // 新闻聚焦功能已禁用
-  // '/analytics',  // 新闻聚焦功能已禁用
-  // '/settings',  // 新闻聚焦功能已禁用
+// 静态资源路径（无需登录）
+const staticPaths = [
+  '/_next',
+  '/favicon.ico',
+  '/api/auth/login',
+  '/api/auth/register',
 ]
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // 检查是否是静态资源路径
+  const isStaticPath = staticPaths.some(path => 
+    pathname.startsWith(path)
+  )
+  if (isStaticPath) {
+    return NextResponse.next()
+  }
+
   // 检查是否是公开路由
   const isPublicRoute = publicRoutes.some(route => 
-    pathname === route || pathname.startsWith(route + '/')
-  )
-
-  // 检查是否是受保护的路由
-  const isProtectedRoute = protectedRoutes.some(route => 
     pathname === route || pathname.startsWith(route + '/')
   )
 
@@ -35,42 +36,26 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 如果是受保护的路由，检查 session cookie
-  if (isProtectedRoute) {
-    const sessionToken = request.cookies.get('newsfocus_session')
+  // 检查 session cookie
+  const sessionToken = request.cookies.get('newsfocus_session')
 
-    if (!sessionToken) {
-      // 未登录，重定向到登录页
-      const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(loginUrl)
+  // 如果未登录，重定向到登录页
+  if (!sessionToken) {
+    // API 路由返回 JSON 错误
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: '需要登录' } },
+        { status: 401 }
+      )
     }
-  }
-
-  // API 路由保护（除了公开的 API）
-  if (pathname.startsWith('/api/')) {
-    // 公开的 API 路由（无需登录）
-    const publicApiRoutes = [
-      '/api/auth/login',
-      '/api/auth/register',
-      '/api/lottery',  // 福利彩票相关API全部公开
-      '/api/news/platforms',
-      '/api/news/platforms/public',
-    ]
-    const isPublicApi = publicApiRoutes.some(route => pathname.startsWith(route))
     
-    // 如果不是公开 API，需要登录（但新闻聚焦功能已禁用，大部分API会返回503）
-    if (!isPublicApi) {
-      const sessionToken = request.cookies.get('newsfocus_session')
-      if (!sessionToken) {
-        return NextResponse.json(
-          { success: false, error: { code: 'UNAUTHORIZED', message: '需要登录' } },
-          { status: 401 }
-        )
-      }
-    }
+    // 页面路由重定向到登录页
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
+  // 已登录用户，允许访问所有页面
   return NextResponse.next()
 }
 

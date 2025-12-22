@@ -42,8 +42,8 @@ export default function LoginPage() {
           variant: "success",
         })
 
-        // 重定向到原页面或首页
-        const redirect = searchParams.get("redirect") || "/"
+        // 重定向到原页面或福利彩票页面
+        const redirect = searchParams.get("redirect") || "/lottery"
         router.push(redirect)
         router.refresh()
       } else {
@@ -107,11 +107,6 @@ export default function LoginPage() {
             <span className="text-muted-foreground">还没有账号？</span>{" "}
             <Link href="/register" className="text-primary hover:underline">
               立即注册
-            </Link>
-          </div>
-          <div className="mt-2 text-center">
-            <Link href="/platforms" className="text-sm text-muted-foreground hover:underline">
-              先看看多平台热点 →
             </Link>
           </div>
         </CardContent>
