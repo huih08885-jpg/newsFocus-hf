@@ -726,7 +726,7 @@ export class DemandRadarService {
     }>()
 
     for (const demand of demands) {
-      const key = demand.cleanedText.toLowerCase()
+      const key = demand.cleaned_text.toLowerCase()
       if (!demandGroups.has(key)) {
         demandGroups.set(key, {
           demand,
