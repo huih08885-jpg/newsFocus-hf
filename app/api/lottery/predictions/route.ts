@@ -5,6 +5,8 @@ import { handleError } from '@/lib/utils/error-handler'
 import { getCurrentUser } from '@/lib/auth'
 import { calculatePrizeLevel } from '@/lib/utils/lottery-period'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * 获取预测历史
  * GET /api/lottery/predictions
