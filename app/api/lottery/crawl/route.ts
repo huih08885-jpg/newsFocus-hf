@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { LotteryCrawler } from '@/lib/services/lottery-crawler'
 import { LotteryCrawlerPuppeteer } from '@/lib/services/lottery-crawler-puppeteer'
+import { LotteryAPIService } from '@/lib/services/lottery-api-service'
 import { prisma } from '@/lib/db/prisma'
 import { logger } from '@/lib/utils/logger'
 import { handleError } from '@/lib/utils/error-handler'
@@ -75,9 +76,58 @@ export async function POST(request: NextRequest) {
     const isVercel = !!process.env.VERCEL || !!process.env.NEXT_PUBLIC_VERCEL
     const canUsePuppeteer = usePuppeteer && !isVercel
 
-    // 根据参数选择使用 Puppeteer 或普通爬虫
+    // 优先尝试使用API服务（如果配置了）
+    const apiService = new LotteryAPIService()
     let result
-    if (canUsePuppeteer) {
+
+    // 如果是"最新爬取"模式，优先使用API
+    if (mode === "latest" && apiService.isConfigured()) {
+      try {
+        logger.info('尝试使用API获取最新开奖结果', 'LotteryAPI')
+        const apiResult = await apiService.getLatestResult()
+        
+        if (apiResult) {
+          // 检查数据库中是否已存在
+          const existing = await prisma.lotteryResult.findUnique({
+            where: { period: apiResult.period }
+          })
+
+          if (!existing) {
+            // 保存到数据库
+            await prisma.lotteryResult.create({
+              data: {
+                period: apiResult.period,
+                date: new Date(apiResult.date),
+                redBalls: apiResult.redBalls,
+                blueBall: apiResult.blueBall,
+                metadata: apiResult.metadata || {},
+              }
+            })
+            logger.info('API获取成功并已保存', 'LotteryAPI', { period: apiResult.period })
+          } else {
+            logger.info('API获取成功，但数据已存在', 'LotteryAPI', { period: apiResult.period })
+          }
+
+          // 返回API结果
+          result = {
+            success: true,
+            data: [apiResult],
+            total: 1,
+          }
+        } else {
+          logger.warn('API获取失败，回退到爬虫', 'LotteryAPI')
+        }
+      } catch (error) {
+        logger.warn('API调用异常，回退到爬虫', 'LotteryAPI', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
+    }
+
+    // 如果API未配置或失败，使用爬虫
+    if (!result || !result.success) {
+      // 根据参数选择使用 Puppeteer 或普通爬虫
+      if (canUsePuppeteer) {
       try {
         logger.info('使用 Puppeteer 爬虫', 'LotteryAPI', { startDate: actualStartDate, endDate: actualEndDate })
         const crawler = new LotteryCrawlerPuppeteer(prisma)
