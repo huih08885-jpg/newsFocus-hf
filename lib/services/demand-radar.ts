@@ -149,8 +149,8 @@ export class DemandRadarService {
                 await this.prisma.extractedDemand.create({
                   data: {
                     sourceId: saved.id,
-                    originalText: demand.originalText,
-                    cleanedText: demand.cleanedText,
+                    original_text: demand.originalText,
+                    cleaned_text: demand.cleanedText,
                     keywords: demand.keywords,
                     category: demand.category,
                   },
