@@ -135,7 +135,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (!result.success) {
-      const errorMessage = result.error || '未知错误'
+      // 提供更友好的错误信息
+      const errorMessage = result.error || '爬取失败'
       const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden')
       
       logger.error('爬虫执行失败', 
@@ -150,9 +151,6 @@ export async function POST(request: NextRequest) {
             : undefined
         }
       )
-      // 提供更友好的错误信息
-      const errorMessage = result.error || '爬取失败'
-      const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden')
       
       return NextResponse.json(
         {
