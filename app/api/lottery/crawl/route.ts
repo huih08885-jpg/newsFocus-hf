@@ -150,10 +150,16 @@ export async function POST(request: NextRequest) {
             : undefined
         }
       )
+      // 提供更友好的错误信息
+      const errorMessage = result.error || '爬取失败'
+      const is403Error = errorMessage.includes('403') || errorMessage.includes('Forbidden')
+      
       return NextResponse.json(
         {
           success: false,
-          error: result.error || '爬取失败',
+          error: is403Error 
+            ? '目标网站启用了反爬虫机制，无法直接访问。建议：1) 稍后重试 2) 检查网络连接 3) 如果问题持续，可能需要使用其他数据源'
+            : errorMessage,
         },
         { status: 500 }
       )

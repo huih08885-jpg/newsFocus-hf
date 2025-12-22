@@ -41,7 +41,15 @@ export interface FetchOptions extends RequestInit {
 }
 
 function buildProxyTargets(url: string): string[] {
-  return [`https://r.jina.ai/${url}`]
+  // Jina AI 代理服务需要正确的 URL 编码
+  // 格式: https://r.jina.ai/{encoded_url}
+  try {
+    const encodedUrl = encodeURIComponent(url)
+    return [`https://r.jina.ai/${encodedUrl}`]
+  } catch (error) {
+    // 如果编码失败，返回原始格式
+    return [`https://r.jina.ai/${url}`]
+  }
 }
 
 /**
@@ -83,9 +91,16 @@ export async function enhancedFetch(
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), timeout)
 
+        // 如果是代理目标，需要调整请求头（移除可能被代理服务拒绝的头部）
+        const requestHeaders = isProxyTarget ? {
+          ...finalHeaders,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        } : finalHeaders
+
         const response = await fetch(target, {
           ...fetchOptions,
-          headers: finalHeaders,
+          headers: requestHeaders,
           signal: controller.signal,
         })
 
@@ -106,6 +121,15 @@ export async function enhancedFetch(
           console.warn(`[FetchHelper] ${url} 返回 ${status}，尝试使用代理...`)
           // 跳出当前目标，尝试代理
           break
+        }
+        
+        // 如果是代理目标也返回错误，记录详细信息并立即抛出
+        if (isProxyTarget && !response.ok) {
+          const proxyErrorMsg = `代理服务也返回 ${status}: ${statusText}，原始URL: ${url}`
+          console.warn(`[FetchHelper] ${proxyErrorMsg}`)
+          lastError = new Error(`HTTP ${status}: ${statusText} - ${proxyErrorMsg}`)
+          // 代理也失败，不再重试
+          throw lastError
         }
 
         const errorMsg = `HTTP ${status}: ${statusText}`
