@@ -128,52 +128,53 @@ export async function POST(request: NextRequest) {
     if (!result || !result.success) {
       // 根据参数选择使用 Puppeteer 或普通爬虫
       if (canUsePuppeteer) {
-      try {
-        logger.info('使用 Puppeteer 爬虫', 'LotteryAPI', { startDate: actualStartDate, endDate: actualEndDate })
-        const crawler = new LotteryCrawlerPuppeteer(prisma)
-        result = await crawler.crawl({
-          startDate: actualStartDate,
-          endDate: actualEndDate,
-          maxPages,
-          onProgress: (progress) => {
-            logger.info('爬取进度', 'LotteryAPI.Progress', progress)
-          }
-        })
-      } catch (error) {
-        const errorObj = error instanceof Error ? error : new Error(String(error))
-        // 如果 Puppeteer 未安装或失败，回退到普通爬虫
-        const isPuppeteerError = 
-          errorObj.message.includes('Puppeteer') || 
-          errorObj.message.includes('puppeteer') ||
-          errorObj.message.includes('Chrome') ||
-          errorObj.message.includes('Could not find')
-        
-        if (isPuppeteerError) {
-          logger.warn('Puppeteer 不可用，回退到普通爬虫', 'LotteryAPI', { 
-            error: errorObj.message,
-            environment: isVercel ? 'Vercel' : 'Other'
-          })
-          const crawler = new LotteryCrawler()
+        try {
+          logger.info('使用 Puppeteer 爬虫', 'LotteryAPI', { startDate: actualStartDate, endDate: actualEndDate })
+          const crawler = new LotteryCrawlerPuppeteer(prisma)
           result = await crawler.crawl({
             startDate: actualStartDate,
             endDate: actualEndDate,
             maxPages,
+            onProgress: (progress) => {
+              logger.info('爬取进度', 'LotteryAPI.Progress', progress)
+            }
           })
-        } else {
-          throw error
+        } catch (error) {
+          const errorObj = error instanceof Error ? error : new Error(String(error))
+          // 如果 Puppeteer 未安装或失败，回退到普通爬虫
+          const isPuppeteerError = 
+            errorObj.message.includes('Puppeteer') || 
+            errorObj.message.includes('puppeteer') ||
+            errorObj.message.includes('Chrome') ||
+            errorObj.message.includes('Could not find')
+          
+          if (isPuppeteerError) {
+            logger.warn('Puppeteer 不可用，回退到普通爬虫', 'LotteryAPI', { 
+              error: errorObj.message,
+              environment: isVercel ? 'Vercel' : 'Other'
+            })
+            const crawler = new LotteryCrawler()
+            result = await crawler.crawl({
+              startDate: actualStartDate,
+              endDate: actualEndDate,
+              maxPages,
+            })
+          } else {
+            throw error
+          }
         }
+      } else {
+        // 在 Vercel 环境中或用户未选择 Puppeteer，使用普通爬虫
+        if (usePuppeteer && isVercel) {
+          logger.info('Vercel 环境不支持 Puppeteer，使用普通爬虫', 'LotteryAPI')
+        }
+        const crawler = new LotteryCrawler()
+        result = await crawler.crawl({
+          startDate: actualStartDate,
+          endDate: actualEndDate,
+          maxPages,
+        })
       }
-    } else {
-      // 在 Vercel 环境中或用户未选择 Puppeteer，使用普通爬虫
-      if (usePuppeteer && isVercel) {
-        logger.info('Vercel 环境不支持 Puppeteer，使用普通爬虫', 'LotteryAPI')
-      }
-      const crawler = new LotteryCrawler()
-      result = await crawler.crawl({
-        startDate: actualStartDate,
-        endDate: actualEndDate,
-        maxPages,
-      })
     }
 
     logger.info('爬虫执行完成，检查结果', 'LotteryAPI', {
