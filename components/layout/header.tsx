@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
-import { SearchBox } from "@/components/search/search-box"
+// import { SearchBox } from "@/components/search/search-box" // 新闻聚焦功能已禁用
 
 interface User {
   id: string
@@ -65,7 +65,7 @@ export function Header() {
           variant: "success",
         })
         setUser(null)
-        router.push("/platforms")
+        router.push("/lottery")
         router.refresh()
       }
     } catch (error) {
@@ -77,14 +77,14 @@ export function Header() {
     }
   }
 
-  const isPublicRoute = pathname === "/platforms" || pathname === "/login" || pathname === "/register"
+  const isPublicRoute = pathname.startsWith("/lottery") || pathname === "/login" || pathname === "/register" || pathname === "/privacy"
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-6">
-          <Link href={user ? "/" : "/platforms"} className="flex items-center gap-2">
-            <span className="text-xl font-bold">NewsFocus</span>
+          <Link href="/lottery" className="flex items-center gap-2">
+            <span className="text-xl font-bold">福利彩票预测系统</span>
           </Link>
           {/* 已隐藏的导航链接 */}
           {/* {user && (
@@ -102,7 +102,8 @@ export function Header() {
           )} */}
         </div>
         <div className="flex items-center gap-4">
-          {user && (
+          {/* 新闻聚焦相关功能已禁用 */}
+          {/* {user && (
             <>
               <div className="hidden md:flex items-center gap-2">
                 <SearchBox
@@ -118,7 +119,7 @@ export function Header() {
                 </Badge>
               </Button>
             </>
-          )}
+          )} */}
           {loading ? (
             <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
           ) : user ? (
