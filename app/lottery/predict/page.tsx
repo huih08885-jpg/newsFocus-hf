@@ -796,7 +796,7 @@ export default function LotteryPredictPage() {
 
                               <TabsContent value="analysis" className="space-y-4 mt-4">
                                 {/* 详细分析结果 */}
-                                {group.analysisResult && (
+                                {group.analysisResult ? (
                                   <div className="space-y-4">
                                     <h3 className="text-lg font-semibold">分析详情</h3>
                                   
@@ -1056,12 +1056,12 @@ export default function LotteryPredictPage() {
                                       </CardContent>
                                     </Card>
                                   )}
-                                  </div>
-                                ) : (
-                                  <div className="text-center py-8 text-muted-foreground">
-                                    暂无分析详情
-                                  </div>
-                                )}
+                                </div>
+                              ) : (
+                                <div className="text-center py-8 text-muted-foreground">
+                                  暂无分析详情
+                                </div>
+                              )}
                               </TabsContent>
 
                               <TabsContent value="evaluation" className="space-y-4 mt-4">
