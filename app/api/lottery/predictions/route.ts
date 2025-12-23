@@ -180,7 +180,40 @@ export async function GET(request: NextRequest) {
     const allResultsMap = new Map(allLotteryResults.map(r => [r.period, r]))
 
     // 计算每个方法的中奖数
-    const calculateWinningCount = (type: string) => {
+    // 优先使用评估表的数据，如果没有评估数据则重新计算
+    const calculateWinningCount = async (type: string) => {
+      // 先查询评估表中的中奖记录（包括所有中奖等级，不限于六等奖）
+      const evaluations = await prisma.lotteryPredictionEvaluation.findMany({
+        where: {
+          prediction: {
+            userId: user.id,
+            analysis: {
+              type: type
+            }
+          },
+          OR: [
+            { prizeLevel: { not: '0' } }, // 中奖记录（prizeLevel 不为 '0'）
+            { prizeLevel: { not: null } } // 或者 prizeLevel 不为 null
+          ]
+        },
+        select: {
+          predictionId: true,
+          prizeLevel: true,
+          method: true
+        }
+      })
+      
+      // 如果评估表中有数据，直接使用
+      if (evaluations.length > 0) {
+        logger.debug(`从评估表获取 ${type} 中奖数`, 'PredictionsAPI', {
+          type,
+          winningCount: evaluations.length,
+          evaluations: evaluations.map(e => ({ prizeLevel: e.prizeLevel, method: e.method }))
+        })
+        return evaluations.length
+      }
+      
+      // 如果没有评估数据，则重新计算
       const methodPredictions = allUserPredictions.filter(p => p.analysis?.type === type)
       let winningCount = 0
       
@@ -202,6 +235,13 @@ export async function GET(request: NextRequest) {
         }
       })
       
+      logger.debug(`重新计算 ${type} 中奖数`, 'PredictionsAPI', {
+        type,
+        winningCount,
+        methodPredictionsCount: methodPredictions.length,
+        resultsFound: methodPredictions.filter(p => p.period && allResultsMap.has(p.period)).length
+      })
+      
       return winningCount
     }
 
@@ -218,24 +258,32 @@ export async function GET(request: NextRequest) {
       where: { ...userWhere, analysis: { type: 'comprehensive' } }
     })
 
+    // 计算各方法的中奖数（使用 await，因为现在是异步函数）
+    const [statisticalWinning, aiWinning, mlWinning, comprehensiveWinning] = await Promise.all([
+      calculateWinningCount('statistical'),
+      calculateWinningCount('ai'),
+      calculateWinningCount('ml'),
+      calculateWinningCount('comprehensive')
+    ])
+
     const stats = {
       total,
       byMethod: {
         statistical: {
           total: statisticalCount,
-          winning: calculateWinningCount('statistical')
+          winning: statisticalWinning
         },
         ai: {
           total: aiCount,
-          winning: calculateWinningCount('ai')
+          winning: aiWinning
         },
         ml: {
           total: mlCount,
-          winning: calculateWinningCount('ml')
+          winning: mlWinning
         },
         comprehensive: {
           total: comprehensiveCount,
-          winning: calculateWinningCount('comprehensive')
+          winning: comprehensiveWinning
         }
       },
       averageConfidence: predictions.length > 0

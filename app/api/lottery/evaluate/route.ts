@@ -198,8 +198,9 @@ export async function GET(request: NextRequest) {
     const periods = parseInt(searchParams.get('periods') || '50')
 
     const winningTracker = new LotteryWinningTracker()
-    const winningRates = await winningTracker.getWinningRates(periods)
-    const optimalWeights = await winningTracker.getOptimalWeights(periods)
+    // 只统计当前用户的评估数据
+    const winningRates = await winningTracker.getWinningRates(periods, user.id)
+    const optimalWeights = await winningTracker.getOptimalWeights(periods, user.id)
 
     return NextResponse.json({
       success: true,

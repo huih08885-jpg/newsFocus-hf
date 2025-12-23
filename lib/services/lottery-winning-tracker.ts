@@ -112,8 +112,10 @@ export class LotteryWinningTracker {
 
   /**
    * 获取各策略的中奖率统计
+   * @param periods 统计期数
+   * @param userId 用户ID（可选，如果提供则只统计该用户的数据）
    */
-  async getWinningRates(periods: number = 50): Promise<{
+  async getWinningRates(periods: number = 50, userId?: string): Promise<{
     statistical: WinningRateStats
     ai: WinningRateStats
     ml: WinningRateStats
@@ -122,15 +124,29 @@ export class LotteryWinningTracker {
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - (periods * 7)) // 假设每周3期，约50期
 
+    const where: any = {
+      createdAt: {
+        gte: cutoffDate
+      }
+    }
+
+    // 如果提供了 userId，只统计该用户的预测评估
+    if (userId) {
+      where.prediction = {
+        userId: userId
+      }
+    }
+
     const evaluations = await prisma.lotteryPredictionEvaluation.findMany({
-      where: {
-        createdAt: {
-          gte: cutoffDate
-        }
-      },
+      where,
       select: {
         method: true,
         prizeLevel: true,
+        prediction: {
+          select: {
+            userId: true
+          }
+        }
       }
     })
 
@@ -176,9 +192,11 @@ export class LotteryWinningTracker {
   /**
    * 获取最优权重组合
    * 根据最近50期的中奖率，动态调整权重
+   * @param periods 统计期数
+   * @param userId 用户ID（可选，如果提供则只统计该用户的数据）
    */
-  async getOptimalWeights(periods: number = 50): Promise<OptimalWeights> {
-    const rates = await this.getWinningRates(periods)
+  async getOptimalWeights(periods: number = 50, userId?: string): Promise<OptimalWeights> {
+    const rates = await this.getWinningRates(periods, userId)
 
     // 基础权重
     const baseWeights = {
