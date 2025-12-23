@@ -61,6 +61,15 @@ export interface PatternAnalysis {
     numbers: string[]
     frequency: number
   }>
+  // 增强特征：组合模式
+  consecutivePairs: Array<{ numbers: string[]; frequency: number }>  // 相邻号码组合
+  tripleConsecutive: Array<{ numbers: string[]; frequency: number }>  // 三连号组合
+  sameTailNumbers: Array<{ numbers: string[]; frequency: number }>      // 同尾号组合
+  spanPatterns: Array<{ span: number; frequency: number }>            // 跨度组合
+  // 增强特征：周期性规律
+  weekdayPattern: Record<string, number[]>  // 星期规律
+  monthPattern: Record<string, number[]>     // 月份规律
+  periodPattern: Array<{ period: number; numbers: string[] }>  // 期数规律
 }
 
 export interface ComprehensiveAnalysis {
@@ -369,13 +378,137 @@ export class LotteryAnalysisService {
       .sort((a, b) => b.frequency - a.frequency)
       .slice(0, 10)
 
+    // 增强特征：相邻号码组合（如：01-02, 05-06）
+    const consecutivePairs: Record<string, number> = {}
+    results.forEach(result => {
+      const redBalls = result.redBalls.map(b => parseInt(b)).sort((a, b) => a - b)
+      for (let i = 0; i < redBalls.length - 1; i++) {
+        const pair = [redBalls[i], redBalls[i + 1]]
+          .map(n => n.toString().padStart(2, '0'))
+          .sort()
+        const key = pair.join('-')
+        consecutivePairs[key] = (consecutivePairs[key] || 0) + 1
+      }
+    })
+
+    // 增强特征：三连号组合（如：01-02-03）
+    const tripleConsecutive: Record<string, number> = {}
+    results.forEach(result => {
+      const redBalls = result.redBalls.map(b => parseInt(b)).sort((a, b) => a - b)
+      for (let i = 0; i < redBalls.length - 2; i++) {
+        if (redBalls[i + 1] - redBalls[i] === 1 && redBalls[i + 2] - redBalls[i + 1] === 1) {
+          const triple = [redBalls[i], redBalls[i + 1], redBalls[i + 2]]
+            .map(n => n.toString().padStart(2, '0'))
+            .sort()
+          const key = triple.join('-')
+          tripleConsecutive[key] = (tripleConsecutive[key] || 0) + 1
+        }
+      }
+    })
+
+    // 增强特征：同尾号组合（如：01-11-21）
+    const sameTailNumbers: Record<string, number> = {}
+    results.forEach(result => {
+      const tailGroups: Record<string, string[]> = {}
+      result.redBalls.forEach(ball => {
+        const tail = ball.slice(-1)
+        if (!tailGroups[tail]) tailGroups[tail] = []
+        tailGroups[tail].push(ball)
+      })
+      Object.values(tailGroups).forEach(group => {
+        if (group.length >= 2) {
+          const key = group.sort().join('-')
+          sameTailNumbers[key] = (sameTailNumbers[key] || 0) + 1
+        }
+      })
+    })
+
+    // 增强特征：跨度组合（最大号-最小号）
+    const spanPatterns: Record<number, number> = {}
+    results.forEach(result => {
+      const redBalls = result.redBalls.map(b => parseInt(b))
+      const span = Math.max(...redBalls) - Math.min(...redBalls)
+      spanPatterns[span] = (spanPatterns[span] || 0) + 1
+    })
+
+    // 增强特征：周期性规律 - 星期规律
+    const weekdayPattern: Record<string, number[]> = {}
+    results.forEach(result => {
+      const weekday = new Date(result.date).getDay().toString()
+      if (!weekdayPattern[weekday]) weekdayPattern[weekday] = []
+      result.redBalls.forEach(ball => {
+        const num = parseInt(ball)
+        if (!weekdayPattern[weekday].includes(num)) {
+          weekdayPattern[weekday].push(num)
+        }
+      })
+    })
+
+    // 增强特征：周期性规律 - 月份规律
+    const monthPattern: Record<string, number[]> = {}
+    results.forEach(result => {
+      const month = (new Date(result.date).getMonth() + 1).toString()
+      if (!monthPattern[month]) monthPattern[month] = []
+      result.redBalls.forEach(ball => {
+        const num = parseInt(ball)
+        if (!monthPattern[month].includes(num)) {
+          monthPattern[month].push(num)
+        }
+      })
+    })
+
+    // 增强特征：期数规律（每N期出现一次）
+    const periodPattern: Array<{ period: number; numbers: string[] }> = []
+    // 简化实现：识别最近出现的号码组合
+    if (results.length >= 10) {
+      const recentNumbers = new Set<string>()
+      results.slice(-10).forEach(result => {
+        result.redBalls.forEach(ball => recentNumbers.add(ball))
+      })
+      periodPattern.push({
+        period: 10,
+        numbers: Array.from(recentNumbers).slice(0, 6)
+      })
+    }
+
     return {
       consecutiveNumbers: {
         frequency: totalConsecutive / results.length,
         patterns: consecutivePatterns
       },
       periodicPatterns,
-      combinationPatterns
+      combinationPatterns,
+      consecutivePairs: Object.entries(consecutivePairs)
+        .map(([numbers, frequency]) => ({
+          numbers: numbers.split('-'),
+          frequency
+        }))
+        .sort((a, b) => b.frequency - a.frequency)
+        .slice(0, 20),
+      tripleConsecutive: Object.entries(tripleConsecutive)
+        .map(([numbers, frequency]) => ({
+          numbers: numbers.split('-'),
+          frequency
+        }))
+        .sort((a, b) => b.frequency - a.frequency)
+        .slice(0, 10),
+      sameTailNumbers: Object.entries(sameTailNumbers)
+        .map(([numbers, frequency]) => ({
+          numbers: numbers.split('-'),
+          frequency
+        }))
+        .sort((a, b) => b.frequency - a.frequency)
+        .slice(0, 10),
+      spanPatterns: Object.entries(spanPatterns)
+        .map(([span, frequency]) => ({
+          span: parseInt(span),
+          frequency
+        }))
+        .sort((a, b) => b.frequency - a.frequency)
+        .slice(0, 10),
+      weekdayPattern,
+      monthPattern,
+      periodPattern
     }
   }
 

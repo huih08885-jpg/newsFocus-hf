@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db/prisma'
 import { LotteryAnalysisService, ComprehensiveAnalysis } from './lottery-analysis'
 import { LotteryAIPredictor, AIPredictionResult } from './lottery-ai-predictor'
 import { LotteryMLPredictor, MLPredictionResult } from './lottery-ml-predictor'
+import { LotteryWinningTracker, OptimalWeights } from './lottery-winning-tracker'
 import { logger } from '@/lib/utils/logger'
 
 export interface PredictionResult {
@@ -37,11 +38,13 @@ export class LotteryPredictor {
   private analysisService: LotteryAnalysisService
   private aiPredictor: LotteryAIPredictor
   private mlPredictor: LotteryMLPredictor
+  private winningTracker: LotteryWinningTracker
 
   constructor() {
     this.analysisService = new LotteryAnalysisService()
     this.aiPredictor = new LotteryAIPredictor()
     this.mlPredictor = new LotteryMLPredictor()
+    this.winningTracker = new LotteryWinningTracker()
   }
 
   /**
@@ -94,7 +97,7 @@ export class LotteryPredictor {
 
     // 4. 融合预测结果
     logger.info('融合预测结果', 'LotteryPredictor')
-    const finalPredictions = this.mergePredictions(
+    const finalPredictions = await this.mergePredictions(
       statisticalAnalysis,
       aiPrediction,
       mlPrediction
@@ -126,11 +129,29 @@ export class LotteryPredictor {
    * 业务逻辑：将三种方法的预测结果进行融合，选择最优的5组号码
    * 技术实现：计算每组号码的综合得分，选择得分最高的5组
    */
-  private mergePredictions(
+  private async mergePredictions(
     statistical: ComprehensiveAnalysis,
     ai: AIPredictionResult | null,
     ml: MLPredictionResult
-  ): PredictionResult[] {
+  ): Promise<PredictionResult[]> {
+    // 获取动态权重（基于历史中奖率）
+    let weights: OptimalWeights
+    try {
+      weights = await this.winningTracker.getOptimalWeights(50)
+      logger.info('使用动态权重', 'LotteryPredictor', { weights })
+    } catch (error) {
+      logger.warn('获取动态权重失败，使用默认权重', 'LotteryPredictor', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+      // 使用默认权重
+      weights = {
+        ai: 0.4,
+        ml: 0.3,
+        statistical: 0.3,
+        total: 1.0
+      }
+    }
+
     const allPredictions: Array<{
       redBalls: string[]
       blueBall: string
@@ -147,7 +168,7 @@ export class LotteryPredictor {
         allPredictions.push({
           ...pred,
           sources: ['ai'],
-          score: pred.confidence * 0.4 // AI权重40%
+          score: pred.confidence * weights.ai // 使用动态权重
         })
       })
     }
@@ -161,7 +182,7 @@ export class LotteryPredictor {
         strategy: this.determineStrategy(pred),
         reasoning: `机器学习预测：热号得分${pred.features.hotScore.toFixed(2)}，遗漏得分${pred.features.omissionScore.toFixed(2)}，分布得分${pred.features.distributionScore.toFixed(2)}`,
         sources: ['ml'],
-        score: pred.confidence * 0.3 // ML权重30%
+        score: pred.confidence * weights.ml // 使用动态权重
       })
     })
 
@@ -171,7 +192,7 @@ export class LotteryPredictor {
       allPredictions.push({
         ...pred,
         sources: ['statistical'],
-        score: pred.confidence * 0.3 // 统计分析权重30%
+        score: pred.confidence * weights.statistical // 使用动态权重
       })
     })
 

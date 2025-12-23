@@ -502,16 +502,17 @@ model DemandRadarTask {
 }
 
 model LotteryResult {
-  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  period      String              @unique
-  date        DateTime            @db.Timestamp(6)
-  redBalls    String[]            @default([]) @map("red_balls")
-  blueBall    String              @map("blue_ball")
+  id          String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  period      String                        @unique
+  date        DateTime                      @db.Timestamp(6)
+  redBalls    String[]                      @default([]) @map("red_balls")
+  blueBall    String                        @map("blue_ball")
   url         String?
   metadata    Json?
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  createdAt   DateTime                      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime                      @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
   comparisons LotteryComparison[]
+  evaluations LotteryPredictionEvaluation[]
 
   @@index([period], map: "idx_lottery_results_period")
   @@index([date(sort: Desc)], map: "idx_lottery_results_date")
@@ -519,21 +520,22 @@ model LotteryResult {
 }
 
 model LotteryPrediction {
-  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   period      String?
-  redBalls    String[]            @default([]) @map("red_balls")
-  blueBall    String              @map("blue_ball")
-  confidence  Float               @default(0)
+  redBalls    String[]                      @default([]) @map("red_balls")
+  blueBall    String                        @map("blue_ball")
+  confidence  Float                         @default(0)
   strategy    String
   reasoning   String?
-  sources     String[]            @default([])
-  analysisId  String?             @map("analysis_id") @db.Uuid
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  userId      String?             @map("user_id")
+  sources     String[]                      @default([])
+  analysisId  String?                       @map("analysis_id") @db.Uuid
+  createdAt   DateTime                      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime                      @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  userId      String?                       @map("user_id")
   comparisons LotteryComparison[]
-  analysis    LotteryAnalysis?    @relation(fields: [analysisId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lottery_predictions_analysis")
-  user        User?               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  evaluations LotteryPredictionEvaluation[]
+  analysis    LotteryAnalysis?              @relation(fields: [analysisId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lottery_predictions_analysis")
+  user        User?                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId], map: "idx_lottery_predictions_user_id")
   @@index([period], map: "idx_lottery_predictions_period")
@@ -598,4 +600,28 @@ model LotteryComparison {
   @@index([prizeLevel], map: "idx_lottery_comparisons_prize_level")
   @@index([createdAt(sort: Desc)], map: "idx_lottery_comparisons_created_at")
   @@map("lottery_comparisons")
+}
+
+model LotteryPredictionEvaluation {
+  id             String            @id @default(dbgenerated("(gen_random_uuid())::text")) @db.VarChar(255)
+  predictionId   String            @map("prediction_id") @db.Uuid
+  actualResultId String?           @map("actual_result_id") @db.Uuid
+  redBallsHit    Int               @default(0) @map("red_balls_hit")
+  blueBallHit    Int               @default(0) @map("blue_ball_hit")
+  prizeLevel     String?           @map("prize_level") @db.VarChar(10)
+  accuracy       Decimal?          @default(0) @db.Decimal(5, 4)
+  score          Decimal?          @default(0) @db.Decimal(10, 4)
+  strategy       String?           @db.VarChar(50)
+  method         String?           @db.VarChar(50)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  prediction     LotteryPrediction @relation(fields: [predictionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lottery_prediction_evaluations_prediction")
+  actualResult   LotteryResult?    @relation(fields: [actualResultId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_lottery_prediction_evaluations_result")
+
+  @@index([predictionId], map: "idx_lottery_prediction_evaluations_prediction_id")
+  @@index([strategy], map: "idx_lottery_prediction_evaluations_strategy")
+  @@index([method], map: "idx_lottery_prediction_evaluations_method")
+  @@index([prizeLevel], map: "idx_lottery_prediction_evaluations_prize_level")
+  @@index([createdAt(sort: Desc)], map: "idx_lottery_prediction_evaluations_created_at")
+  @@index([method, strategy], map: "idx_lottery_prediction_evaluations_method_strategy")
+  @@map("lottery_prediction_evaluations")
 }
