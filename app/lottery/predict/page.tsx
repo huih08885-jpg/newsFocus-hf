@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Sparkles, TrendingUp, Brain, BarChart3, Info, Eye, Search, Filter, X } from "lucide-react"
+import { Loader2, Sparkles, TrendingUp, Brain, BarChart3, Info, Eye, Search, Filter, X, RefreshCw, TrendingDown, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   Tooltip,
@@ -38,6 +38,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
 
 interface PredictionResult {
   redBalls: string[]
@@ -225,10 +232,6 @@ export default function LotteryPredictPage() {
   // 检查是否有筛选条件（综合预测是默认值，不算筛选条件）
   const hasActiveFilters = (filters.method && filters.method !== "" && filters.method !== "comprehensive") || filters.period || filters.startDate || filters.endDate
 
-  useEffect(() => {
-    fetchHistory()
-  }, [filters])
-
   const generatePredictions = async () => {
     if (periods < 10) {
       toast({
@@ -332,7 +335,7 @@ export default function LotteryPredictPage() {
     }
   }
 
-  const getConfidenceColor = (confidence: number) => {
+  const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.7) return 'text-green-600 dark:text-green-400'
     if (confidence >= 0.5) return 'text-yellow-600 dark:text-yellow-400'
     return 'text-red-600 dark:text-red-400'
@@ -695,10 +698,17 @@ export default function LotteryPredictPage() {
                                 {group.predictedPeriod && ` | 预测期号: ${group.predictedPeriod}`}
                               </DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4 mt-4">
-                              {/* 预测组列表 */}
-                              <div>
-                                <h3 className="text-lg font-semibold mb-3">预测号码</h3>
+                            <Tabs defaultValue="predictions" className="mt-4">
+                              <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="predictions">预测号码</TabsTrigger>
+                                <TabsTrigger value="analysis">分析详情</TabsTrigger>
+                                <TabsTrigger value="evaluation">评估信息</TabsTrigger>
+                              </TabsList>
+                              
+                              <TabsContent value="predictions" className="space-y-4 mt-4">
+                                {/* 预测组列表 */}
+                                <div>
+                                  <h3 className="text-lg font-semibold mb-3">预测号码</h3>
                                 <div className="space-y-3">
                                   {group.predictions.map((pred, predIndex) => (
                                     <Card key={pred.id}>
@@ -782,11 +792,13 @@ export default function LotteryPredictPage() {
                                   ))}
                                 </div>
                               </div>
+                              </TabsContent>
 
-                              {/* 详细分析结果 */}
-                              {group.analysisResult && (
-                                <div className="space-y-4">
-                                  <h3 className="text-lg font-semibold">分析详情</h3>
+                              <TabsContent value="analysis" className="space-y-4 mt-4">
+                                {/* 详细分析结果 */}
+                                {group.analysisResult && (
+                                  <div className="space-y-4">
+                                    <h3 className="text-lg font-semibold">分析详情</h3>
                                   
                                   {/* 统计分析 */}
                                   {group.analysisResult.statistical && (
@@ -1044,9 +1056,51 @@ export default function LotteryPredictPage() {
                                       </CardContent>
                                     </Card>
                                   )}
-                                </div>
-                              )}
-                            </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-8 text-muted-foreground">
+                                    暂无分析详情
+                                  </div>
+                                )}
+                              </TabsContent>
+
+                              <TabsContent value="evaluation" className="space-y-4 mt-4">
+                                {group.result ? (
+                                  <EvaluationTabContent 
+                                    group={group}
+                                    onEvaluate={async () => {
+                                      // 评估预测结果
+                                      try {
+                                        const response = await fetch('/api/lottery/evaluate', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ period: group.predictedPeriod })
+                                        })
+                                        const result = await response.json()
+                                        if (result.success) {
+                                          toast({
+                                            title: "评估完成",
+                                            description: "预测结果已评估",
+                                          })
+                                          fetchHistory() // 刷新数据
+                                        }
+                                      } catch (error) {
+                                        toast({
+                                          title: "评估失败",
+                                          description: error instanceof Error ? error.message : "未知错误",
+                                          variant: "destructive",
+                                        })
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="text-center py-8 text-muted-foreground">
+                                    <AlertCircle className="mx-auto h-12 w-12 mb-4" />
+                                    <p>开奖结果尚未公布，无法进行评估</p>
+                                  </div>
+                                )}
+                              </TabsContent>
+                            </Tabs>
                           </DialogContent>
                         </Dialog>
                       </TableCell>
@@ -1058,6 +1112,250 @@ export default function LotteryPredictPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  )
+}
+
+// 评估信息标签页内容组件
+function EvaluationTabContent({ 
+  group, 
+  onEvaluate 
+}: { 
+  group: GroupedPrediction
+  onEvaluate: () => void
+}) {
+  const [evaluations, setEvaluations] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    // 获取评估数据
+    const fetchEvaluations = async () => {
+      if (!group.predictedPeriod) return
+      
+      setLoading(true)
+      try {
+        const evaluations = await Promise.all(
+          group.predictions.map(async (pred) => {
+            try {
+              const response = await fetch('/api/lottery/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ predictionId: pred.id })
+              })
+              const result = await response.json()
+              return result.success ? result.data : null
+            } catch {
+              return null
+            }
+          })
+        )
+        setEvaluations(evaluations.filter(e => e !== null))
+      } catch (error) {
+        console.error('获取评估数据失败:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEvaluations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group.predictedPeriod, group.predictions.length])
+
+  const getPrizeLevelVariant = (level: string) => {
+    if (level === '0') return 'secondary'
+    if (level === '1' || level === '2') return 'default'
+    return 'outline'
+  }
+
+  const getPrizeLevelName = (level: string) => {
+    const names: Record<string, string> = {
+      '0': '未中奖',
+      '1': '一等奖',
+      '2': '二等奖',
+      '3': '三等奖',
+      '4': '四等奖',
+      '5': '五等奖',
+      '6': '六等奖',
+    }
+    return names[level] || '未知'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">加载评估数据中...</span>
+      </div>
+    )
+  }
+
+  if (evaluations.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-muted-foreground mb-4">尚未进行评估</p>
+        <Button onClick={onEvaluate}>
+          <CheckCircle2 className="mr-2 h-4 w-4" />
+          立即评估
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">评估结果</h3>
+        <Button onClick={onEvaluate} variant="outline" size="sm">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          重新评估
+        </Button>
+      </div>
+
+      {group.predictions.map((pred, predIndex) => {
+        const evaluation = evaluations.find(e => e.prediction.id === pred.id)?.evaluation
+        const failureAnalysis = evaluations.find(e => e.prediction.id === pred.id)?.failureAnalysis
+
+        if (!evaluation) {
+          return (
+            <Card key={pred.id}>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  第 {predIndex + 1} 组预测尚未评估
+                </div>
+              </CardContent>
+            </Card>
+          )
+        }
+
+        return (
+          <Card key={pred.id}>
+            <CardHeader>
+              <CardTitle className="text-base">第 {predIndex + 1} 组预测评估</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* 评估结果概览 */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">准确率</Label>
+                  <div className="space-y-2">
+                    <Progress value={evaluation.accuracy * 100} />
+                    <span className="text-lg font-bold">
+                      {(evaluation.accuracy * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">中奖等级</Label>
+                  <Badge variant={getPrizeLevelVariant(evaluation.prizeLevel)} className="text-base">
+                    {getPrizeLevelName(evaluation.prizeLevel)}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">红球命中</Label>
+                  <span className="text-2xl font-bold">
+                    {evaluation.redBallsHit}/6
+                  </span>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">蓝球命中</Label>
+                  <div className="flex items-center gap-2">
+                    {evaluation.blueBallHit > 0 ? (
+                      <CheckCircle2 className="h-6 w-6 text-green-500" />
+                    ) : (
+                      <XCircle className="h-6 w-6 text-red-500" />
+                    )}
+                    <span className="text-lg font-bold">
+                      {evaluation.blueBallHit > 0 ? '命中' : '未命中'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 综合得分和提升幅度 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">综合得分</Label>
+                  <span className="text-xl font-bold">{evaluation.score.toFixed(1)}分</span>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground mb-2 block">提升幅度</Label>
+                  <div className="flex items-center gap-2">
+                    {evaluation.improvement > 0 ? (
+                      <TrendingUp className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <TrendingDown className="h-5 w-5 text-red-500" />
+                    )}
+                    <span className="text-xl font-bold">
+                      {evaluation.improvement > 0 ? '+' : ''}
+                      {(evaluation.improvement * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 命中详情 */}
+              {evaluation.details && (
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">命中详情</Label>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-sm text-muted-foreground">命中的红球: </span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {evaluation.details.redBallsMatched.map((ball: string) => (
+                          <div
+                            key={ball}
+                            className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-xs ring-2 ring-red-800"
+                          >
+                            {ball.padStart(2, '0')}
+                          </div>
+                        ))}
+                        {evaluation.details.redBallsMatched.length === 0 && (
+                          <span className="text-sm text-muted-foreground">无</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">未命中的红球: </span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {evaluation.details.redBallsMissed.map((ball: string) => (
+                          <div
+                            key={ball}
+                            className="w-8 h-8 rounded-full bg-red-200 text-red-800 flex items-center justify-center font-bold text-xs"
+                          >
+                            {ball.padStart(2, '0')}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 失败原因分析 */}
+              {failureAnalysis && (
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">失败原因分析</Label>
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 space-y-2">
+                    <p className="text-sm font-medium">{failureAnalysis.reason}</p>
+                    {failureAnalysis.suggestions && failureAnalysis.suggestions.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold mb-2">改进建议:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          {failureAnalysis.suggestions.map((suggestion: string, idx: number) => (
+                            <li key={idx}>{suggestion}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }

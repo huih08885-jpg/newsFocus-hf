@@ -112,6 +112,12 @@ const navItems: NavItem[] = [
     requireAuth: false,
   },
   {
+    title: "评估统计",
+    href: "/lottery/evaluation",
+    icon: PieChart,
+    requireAuth: false,
+  },
+  {
     title: "预测",
     icon: Sparkles,
     requireAuth: false,
