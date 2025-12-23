@@ -121,14 +121,8 @@ export class LotteryWinningTracker {
     ml: WinningRateStats
     comprehensive: WinningRateStats
   }> {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - (periods * 7)) // 假设每周3期，约50期
-
-    const where: any = {
-      createdAt: {
-        gte: cutoffDate
-      }
-    }
+    // 构建查询条件
+    const where: any = {}
 
     // 如果提供了 userId，只统计该用户的预测评估
     if (userId) {
@@ -137,6 +131,16 @@ export class LotteryWinningTracker {
       }
     }
 
+    // 暂时不按日期过滤，统计所有评估记录
+    // 如果需要按日期过滤，可以取消下面的注释
+    // if (periods < 200) {
+    //   const cutoffDate = new Date()
+    //   cutoffDate.setDate(cutoffDate.getDate() - (periods * 7)) // 假设每周3期
+    //   where.createdAt = {
+    //     gte: cutoffDate
+    //   }
+    // }
+
     const evaluations = await prisma.lotteryPredictionEvaluation.findMany({
       where,
       select: {
@@ -144,10 +148,25 @@ export class LotteryWinningTracker {
         prizeLevel: true,
         prediction: {
           select: {
-            userId: true
+            userId: true,
+            analysis: {
+              select: {
+                type: true
+              }
+            }
           }
         }
       }
+    })
+
+    logger.debug('查询评估记录', 'WinningTracker', {
+      userId,
+      evaluationsCount: evaluations.length,
+      evaluations: evaluations.map(e => ({
+        method: e.method,
+        prizeLevel: e.prizeLevel,
+        analysisType: e.prediction?.analysis?.type
+      }))
     })
 
     const stats: Record<string, WinningRateStats> = {
@@ -158,7 +177,18 @@ export class LotteryWinningTracker {
     }
 
     evaluations.forEach(evaluation => {
-      const method = evaluation.method || 'statistical'
+      // 优先使用 method 字段，如果没有则使用 analysis.type
+      let method = evaluation.method
+      if (!method && evaluation.prediction?.analysis?.type) {
+        method = evaluation.prediction.analysis.type
+      }
+      method = method || 'statistical'
+      
+      // 如果 method 是 'comprehensive'，也要统计到 comprehensive
+      if (method === 'comprehensive' || !stats[method]) {
+        method = 'comprehensive'
+      }
+      
       if (stats[method]) {
         stats[method].total++
         if (evaluation.prizeLevel && evaluation.prizeLevel !== '0') {
@@ -173,6 +203,15 @@ export class LotteryWinningTracker {
           currentStat.prizeDistribution[levelKey]++
         }
       }
+    })
+    
+    logger.debug('统计结果', 'WinningTracker', {
+      stats: Object.keys(stats).map(method => ({
+        method,
+        total: stats[method].total,
+        winning: stats[method].winning,
+        prizeDistribution: stats[method].prizeDistribution
+      }))
     })
 
     // 计算中奖率

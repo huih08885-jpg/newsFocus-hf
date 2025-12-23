@@ -126,15 +126,49 @@ export default function EvaluationPage() {
     { name: '综合预测', rate: data.winningRates.comprehensive.rate * 100, winning: data.winningRates.comprehensive.winning, total: data.winningRates.comprehensive.total },
   ]
 
+  // 合并所有方法的奖级分布（显示所有方法的总和）
+  const totalPrizeDistribution = {
+    level0: data.winningRates.statistical.prizeDistribution.level0 +
+            data.winningRates.ai.prizeDistribution.level0 +
+            data.winningRates.ml.prizeDistribution.level0 +
+            data.winningRates.comprehensive.prizeDistribution.level0,
+    level1: data.winningRates.statistical.prizeDistribution.level1 +
+            data.winningRates.ai.prizeDistribution.level1 +
+            data.winningRates.ml.prizeDistribution.level1 +
+            data.winningRates.comprehensive.prizeDistribution.level1,
+    level2: data.winningRates.statistical.prizeDistribution.level2 +
+            data.winningRates.ai.prizeDistribution.level2 +
+            data.winningRates.ml.prizeDistribution.level2 +
+            data.winningRates.comprehensive.prizeDistribution.level2,
+    level3: data.winningRates.statistical.prizeDistribution.level3 +
+            data.winningRates.ai.prizeDistribution.level3 +
+            data.winningRates.ml.prizeDistribution.level3 +
+            data.winningRates.comprehensive.prizeDistribution.level3,
+    level4: data.winningRates.statistical.prizeDistribution.level4 +
+            data.winningRates.ai.prizeDistribution.level4 +
+            data.winningRates.ml.prizeDistribution.level4 +
+            data.winningRates.comprehensive.prizeDistribution.level4,
+    level5: data.winningRates.statistical.prizeDistribution.level5 +
+            data.winningRates.ai.prizeDistribution.level5 +
+            data.winningRates.ml.prizeDistribution.level5 +
+            data.winningRates.comprehensive.prizeDistribution.level5,
+    level6: data.winningRates.statistical.prizeDistribution.level6 +
+            data.winningRates.ai.prizeDistribution.level6 +
+            data.winningRates.ml.prizeDistribution.level6 +
+            data.winningRates.comprehensive.prizeDistribution.level6,
+  }
+
   const prizeDistributionData = [
-    { name: '一等奖', count: data.winningRates.comprehensive.prizeDistribution.level1 },
-    { name: '二等奖', count: data.winningRates.comprehensive.prizeDistribution.level2 },
-    { name: '三等奖', count: data.winningRates.comprehensive.prizeDistribution.level3 },
-    { name: '四等奖', count: data.winningRates.comprehensive.prizeDistribution.level4 },
-    { name: '五等奖', count: data.winningRates.comprehensive.prizeDistribution.level5 },
-    { name: '六等奖', count: data.winningRates.comprehensive.prizeDistribution.level6 },
-    { name: '未中奖', count: data.winningRates.comprehensive.prizeDistribution.level0 },
+    { name: '一等奖', count: totalPrizeDistribution.level1 },
+    { name: '二等奖', count: totalPrizeDistribution.level2 },
+    { name: '三等奖', count: totalPrizeDistribution.level3 },
+    { name: '四等奖', count: totalPrizeDistribution.level4 },
+    { name: '五等奖', count: totalPrizeDistribution.level5 },
+    { name: '六等奖', count: totalPrizeDistribution.level6 },
+    { name: '未中奖', count: totalPrizeDistribution.level0 },
   ]
+
+  const totalCount = Object.values(totalPrizeDistribution).reduce((sum, count) => sum + count, 0)
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -296,7 +330,7 @@ export default function EvaluationPage() {
                     <span className="text-sm text-muted-foreground">{prize.count}次</span>
                   </div>
                   <Progress 
-                    value={(prize.count / data.winningRates.comprehensive.total) * 100} 
+                    value={totalCount > 0 ? (prize.count / totalCount) * 100 : 0} 
                     className="h-2" 
                   />
                 </div>
