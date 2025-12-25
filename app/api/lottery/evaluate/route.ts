@@ -135,6 +135,21 @@ export async function POST(request: NextRequest) {
       : null
 
     // 记录到数据库
+    // 确定 method：如果 sources 包含多个方法，使用 'comprehensive'；否则使用 sources[0]
+    let method: 'statistical' | 'ai' | 'ml' | 'comprehensive' = 'comprehensive'
+    if (prediction.sources && prediction.sources.length > 0) {
+      // 如果 sources 只有一个元素，使用该元素；如果有多个，使用 'comprehensive'
+      if (prediction.sources.length === 1) {
+        const source = prediction.sources[0]
+        if (source === 'statistical' || source === 'ai' || source === 'ml') {
+          method = source
+        }
+      } else {
+        // 多个 sources，使用 'comprehensive'
+        method = 'comprehensive'
+      }
+    }
+    
     const winningTracker = new LotteryWinningTracker()
     await winningTracker.trackWinning(
       prediction.id,
@@ -142,7 +157,7 @@ export async function POST(request: NextRequest) {
       actualResult.redBalls,
       actualResult.blueBall,
       prediction.strategy,
-      prediction.sources[0] as 'statistical' | 'ai' | 'ml' | 'comprehensive' || 'comprehensive'
+      method
     )
 
     logger.info('预测评估完成', 'LotteryEvaluateAPI', {

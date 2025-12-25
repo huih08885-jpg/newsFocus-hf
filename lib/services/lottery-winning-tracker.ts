@@ -129,6 +129,9 @@ export class LotteryWinningTracker {
       where.prediction = {
         userId: userId
       }
+    } else {
+      // 如果没有提供 userId，查询所有评估记录（用于调试）
+      logger.warn('未提供 userId，将查询所有评估记录', 'WinningTracker')
     }
 
     // 暂时不按日期过滤，统计所有评估记录
@@ -159,14 +162,19 @@ export class LotteryWinningTracker {
       }
     })
 
-    logger.debug('查询评估记录', 'WinningTracker', {
+    logger.info('查询评估记录', 'WinningTracker', {
       userId,
+      periods,
+      whereCondition: JSON.stringify(where),
       evaluationsCount: evaluations.length,
-      evaluations: evaluations.map(e => ({
+      sampleEvaluations: evaluations.slice(0, 10).map(e => ({
         method: e.method,
         prizeLevel: e.prizeLevel,
-        analysisType: e.prediction?.analysis?.type
-      }))
+        analysisType: e.prediction?.analysis?.type,
+        userId: e.prediction?.userId
+      })),
+      prizeLevels: [...new Set(evaluations.map(e => e.prizeLevel).filter(Boolean))],
+      methods: [...new Set(evaluations.map(e => e.method).filter(Boolean))]
     })
 
     const stats: Record<string, WinningRateStats> = {
@@ -182,13 +190,18 @@ export class LotteryWinningTracker {
       if (!method && evaluation.prediction?.analysis?.type) {
         method = evaluation.prediction.analysis.type
       }
-      method = method || 'statistical'
       
-      // 如果 method 是 'comprehensive'，也要统计到 comprehensive
-      if (method === 'comprehensive' || !stats[method]) {
+      // 如果 method 为空或不在已知列表中，默认为 'comprehensive'
+      if (!method || !stats[method]) {
+        logger.debug('method 为空或不在已知列表中，使用 comprehensive', 'WinningTracker', {
+          originalMethod: evaluation.method,
+          analysisType: evaluation.prediction?.analysis?.type,
+          finalMethod: 'comprehensive'
+        })
         method = 'comprehensive'
       }
       
+      // 确保 method 在 stats 中
       if (stats[method]) {
         stats[method].total++
         if (evaluation.prizeLevel && evaluation.prizeLevel !== '0') {
@@ -201,15 +214,41 @@ export class LotteryWinningTracker {
         const currentStat = stats[method]
         if (levelKey in currentStat.prizeDistribution) {
           currentStat.prizeDistribution[levelKey]++
+          logger.debug('统计奖级分布', 'WinningTracker', {
+            method,
+            level,
+            levelKey,
+            prizeLevel: evaluation.prizeLevel,
+            count: currentStat.prizeDistribution[levelKey]
+          })
+        } else {
+          // 如果 levelKey 不在 prizeDistribution 中，记录警告
+          logger.warn('未知的奖级', 'WinningTracker', {
+            level,
+            levelKey,
+            method,
+            prizeLevel: evaluation.prizeLevel,
+            availableKeys: Object.keys(currentStat.prizeDistribution)
+          })
         }
+      } else {
+        // 如果 method 不在 stats 中，记录警告
+        logger.warn('未知的 method 值', 'WinningTracker', {
+          method: evaluation.method,
+          analysisType: evaluation.prediction?.analysis?.type,
+          prizeLevel: evaluation.prizeLevel
+        })
       }
     })
     
-    logger.debug('统计结果', 'WinningTracker', {
+    logger.info('统计结果', 'WinningTracker', {
+      userId,
+      periods,
       stats: Object.keys(stats).map(method => ({
         method,
         total: stats[method].total,
         winning: stats[method].winning,
+        rate: stats[method].rate,
         prizeDistribution: stats[method].prizeDistribution
       }))
     })

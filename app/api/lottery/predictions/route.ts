@@ -157,6 +157,7 @@ export async function GET(request: NextRequest) {
         period: true,
         redBalls: true,
         blueBall: true,
+        sources: true, // 添加 sources 字段
         analysis: {
           select: {
             type: true
@@ -182,15 +183,14 @@ export async function GET(request: NextRequest) {
     // 计算每个方法的中奖数
     // 优先使用评估表的数据，如果没有评估数据则重新计算
     const calculateWinningCount = async (type: string) => {
-      // 先查询评估表中的中奖记录（包括所有中奖等级，不限于六等奖）
+      // 先查询评估表中的中奖记录
+      // 注意：评估表的 method 字段应该与预测的 sources 或 analysis.type 匹配
       const evaluations = await prisma.lotteryPredictionEvaluation.findMany({
         where: {
           prediction: {
-            userId: user.id,
-            analysis: {
-              type: type
-            }
+            userId: user.id
           },
+          method: type, // 直接按 method 字段查询
           OR: [
             { prizeLevel: { not: '0' } }, // 中奖记录（prizeLevel 不为 '0'）
             { prizeLevel: { not: null } } // 或者 prizeLevel 不为 null
@@ -214,7 +214,12 @@ export async function GET(request: NextRequest) {
       }
       
       // 如果没有评估数据，则重新计算
-      const methodPredictions = allUserPredictions.filter(p => p.analysis?.type === type)
+      // 注意：由于所有预测的 analysis.type 都是 'comprehensive'，需要根据 sources 字段判断
+      const methodPredictions = allUserPredictions.filter(p => {
+        // 如果 sources 包含该类型，或者 analysis.type 匹配
+        return p.sources?.includes(type) || p.analysis?.type === type
+      })
+      
       let winningCount = 0
       
       methodPredictions.forEach(pred => {
@@ -239,24 +244,31 @@ export async function GET(request: NextRequest) {
         type,
         winningCount,
         methodPredictionsCount: methodPredictions.length,
-        resultsFound: methodPredictions.filter(p => p.period && allResultsMap.has(p.period)).length
+        resultsFound: methodPredictions.filter(p => p.period && allResultsMap.has(p.period)).length,
+        samplePredictions: methodPredictions.slice(0, 3).map(p => ({
+          period: p.period,
+          sources: p.sources,
+          analysisType: p.analysis?.type
+        }))
       })
       
       return winningCount
     }
 
-    const statisticalCount = await prisma.lotteryPrediction.count({
-      where: { ...userWhere, analysis: { type: 'statistical' } }
-    })
-    const aiCount = await prisma.lotteryPrediction.count({
-      where: { ...userWhere, analysis: { type: 'ai' } }
-    })
-    const mlCount = await prisma.lotteryPrediction.count({
-      where: { ...userWhere, analysis: { type: 'ml' } }
-    })
-    const comprehensiveCount = await prisma.lotteryPrediction.count({
-      where: { ...userWhere, analysis: { type: 'comprehensive' } }
-    })
+    // 统计各方法的预测数：由于所有预测的 analysis.type 都是 'comprehensive'，
+    // 需要根据 sources 字段来判断方法
+    const statisticalCount = allUserPredictions.filter(p => 
+      p.sources?.includes('statistical') || p.analysis?.type === 'statistical'
+    ).length
+    const aiCount = allUserPredictions.filter(p => 
+      p.sources?.includes('ai') || p.analysis?.type === 'ai'
+    ).length
+    const mlCount = allUserPredictions.filter(p => 
+      p.sources?.includes('ml') || p.analysis?.type === 'ml'
+    ).length
+    const comprehensiveCount = allUserPredictions.filter(p => 
+      p.analysis?.type === 'comprehensive'
+    ).length
 
     // 计算各方法的中奖数（使用 await，因为现在是异步函数）
     const [statisticalWinning, aiWinning, mlWinning, comprehensiveWinning] = await Promise.all([
